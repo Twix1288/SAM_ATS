@@ -105,7 +105,7 @@ step "Ashby read endpoints answer"
 READS_OK=0
 for EP in /candidate.list /application.list /job.info /interviewStage.list /customField.list; do
   curl -s -X POST "http://localhost:3001$EP" -H "$AUTH" -H 'content-type: application/json' -d '{}' \
-    | grep -q '"success":true' && READS_OK=$((READS_OK+1))
+    | grep '"success":true' > /dev/null && READS_OK=$((READS_OK+1))
 done
 [ "$READS_OK" = "5" ] && ok "5 of 5" || bad "$READS_OK of 5"
 
@@ -130,7 +130,7 @@ OUTCOME=$(echo "$R" | node -pe "try{JSON.parse(require('fs').readFileSync(0)).ou
 for D in "dashboard scores:customField.setValues" "attachment:candidate.uploadFile" "rich note:candidate.createNote"; do
   NAME="${D%%:*}"; EP="${D##*:}"
   step "  $NAME"
-  echo "$R" | grep -q "\"endpoint\":\"/$EP\",\"ok\":true" && ok "/$EP" || bad "/$EP did not land"
+  echo "$R" | grep "\"endpoint\":\"/$EP\",\"ok\":true" > /dev/null && ok "/$EP" || bad "/$EP did not land"
 done
 
 step "note references the attachment"
@@ -139,7 +139,7 @@ grep -q "references the attachment" /tmp/pf_sam.log && ok "" || bad "note did no
 step "values readable back through the Ashby API"
 APP=$(curl -s -X POST http://localhost:3001/application.list -H "$AUTH" -H 'content-type: application/json' -d '{}' \
   | node -pe "const r=JSON.parse(require('fs').readFileSync(0)).results;const a=r.find(x=>x.candidate.name==='Aditya Alapati');JSON.stringify(a.customFieldValues)")
-echo "$APP" | grep -q '"Sam Role Fit"' && ok "$(echo "$APP" | cut -c1-52)…" || bad "no values on the application"
+echo "$APP" | grep '"Sam Role Fit"' > /dev/null && ok "$(echo "$APP" | cut -c1-52)…" || bad "no values on the application"
 
 step "Snapshot attached, resume untouched"
 CID=$(curl -s -X POST http://localhost:3001/application.list -H "$AUTH" -H 'content-type: application/json' -d '{}' \
@@ -151,13 +151,13 @@ CHK=$(curl -s -X POST http://localhost:3001/candidate.info -H "$AUTH" -H 'conten
 step "the note is readable from the feed endpoint"
 NOTES=$(curl -s -X POST http://localhost:3001/candidate.listNotes -H "$AUTH" -H 'content-type: application/json' -d "{\"candidateId\":\"$CID\"}" \
   | node -pe "const n=JSON.parse(require('fs').readFileSync(0)).results;n.length?n.length+' × '+n[0].content.type:'none'")
-echo "$NOTES" | grep -q "text/html" && ok "$NOTES" || bad "$NOTES"
+echo "$NOTES" | grep "text/html" > /dev/null && ok "$NOTES" || bad "$NOTES"
 
 step "the Snapshot opens in the viewer"
 FID=$(curl -s -X POST http://localhost:3001/candidate.info -H "$AUTH" -H 'content-type: application/json' -d "{\"id\":\"$CID\"}" \
   | node -pe "const f=JSON.parse(require('fs').readFileSync(0)).results.fileHandles.find(x=>x.source==='Sam');f?f.id:''")
 FCODE=$(curl -s -o /tmp/pf_pdf -w "%{http_code}" "http://localhost:3001/files/$FID")
-[ "$FCODE" = "200" ] && head -c4 /tmp/pf_pdf | grep -q "%PDF" && ok "inline pdf, $(wc -c < /tmp/pf_pdf | tr -d ' ')b" || bad "HTTP $FCODE"
+[ "$FCODE" = "200" ] && head -c4 /tmp/pf_pdf | grep "%PDF" > /dev/null && ok "inline pdf, $(wc -c < /tmp/pf_pdf | tr -d ' ')b" || bad "HTTP $FCODE"
 
 step "snapshot pdf written"
 [ -s ashby-simulator/output/sam_snapshot_aditya_alapati.pdf ] \
@@ -176,8 +176,16 @@ for U in "canvas/aditya_alapati:the dashboard and three surfaces" \
   [ "$CODE" = "200" ] && [ "$SIZE" -gt 500 ] && ok "$DESC · ${SIZE}b" || bad "HTTP $CODE"
 done
 
+# Grepped from a file, never through a pipe. `grep -q` exits at the first match, and
+# under `set -o pipefail` a still-streaming curl then dies of SIGPIPE and fails the
+# check even though the text was there. The canvas is 80KB; the race is real.
+# And we match the opening tag plus a Sam column, not the bare class name — the class
+# also appears in the stylesheet, so a grep for it alone passes with no table at all.
 step "pipeline table present on the canvas"
-curl -s "http://localhost:3000/canvas/aditya_alapati" | grep -q "ab-ptable" && ok "sortable columns render" || bad "missing"
+curl -s -o /tmp/pf_canvas "http://localhost:3000/canvas/aditya_alapati"
+ROWS=$(grep -c "sam num" /tmp/pf_canvas || true)
+grep -q '<table class="ab-ptable">' /tmp/pf_canvas && [ "${ROWS:-0}" -gt 3 ] \
+  && ok "table renders with Sam columns · ${ROWS} cells" || bad "missing"
 
 # ── the four moves ───────────────────────────────────────────────────────────
 echo
@@ -186,11 +194,11 @@ echo "${CYAN}Walkthrough moves${OFF}"
 step "A · runs on a different candidate"
 R2=$(npm run trigger -- --row 11 2>&1 | grep -o '{.*}' | tail -1)
 N2=$(echo "$R2" | node -pe "try{const d=JSON.parse(require('fs').readFileSync(0));d.candidate+' '+Math.round(d.roleFit*100)+'%'}catch(e){'error'}")
-echo "$R2" | grep -q '"outcome":"complete"' && ok "$N2" || bad "$N2"
+echo "$R2" | grep '"outcome":"complete"' > /dev/null && ok "$N2" || bad "$N2"
 
 step "B · retried delivery is deduplicated"
 npm run trigger -- --row 6 --replay >/dev/null 2>&1
-npm run trigger -- --row 6 --replay 2>&1 | grep -q '"duplicate":true' && ok "no double-write" || bad "reprocessed"
+npm run trigger -- --row 6 --replay 2>&1 | grep '"duplicate":true' > /dev/null && ok "no double-write" || bad "reprocessed"
 
 step "C · forged signature rejected"
 CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST http://localhost:3000/webhooks/applicationSubmit \
