@@ -1,0 +1,19 @@
+{
+  "name": "sam-ashby-poc",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Ashby <-> Sam integration proof of concept",
+  "scripts": {
+    "ashby": "node ashby-simulator/mock_ashby_api.js",
+    "sam": "ASHBY_API_URL=http://localhost:3001 node sam-integration/server.js",
+    "trigger": "node ashby-simulator/trigger_application.js",
+    "canvas": "node scripts/build-canvas.js ashby-simulator/output/canvas.html",
+    "test": "node --test \"test/*.test.js\"",
+    "package": "bash scripts/package.sh",
+    "preflight": "bash scripts/preflight.sh"
+  },
+  "dependencies": {
+    "pdf-lib": "^1.17.1"
+  }
+}

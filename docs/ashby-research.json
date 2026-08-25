@@ -1,0 +1,614 @@
+{
+ "screens": {
+  "layout": {
+   "columns": 3,
+   "viewportWidth": 1440,
+   "description": "At 1440px Ashby's candidate record reads as three vertical bands under a full-width candidate header. Band 1 is the persistent global navigation sidebar (Home, Pipeline, Jobs, Candidates, Analytics...). Band 2 is the candidate detail rail, whose content is the 'Summary' tab \u2014 Ashby's docs describe Summary as a TAB containing 'candidate details, such as their email address, phone number, social links, any candidate custom fields, and additional uploaded files.' Band 3 is the main feed column, which carries the tab bar (Feed / Notes / Emails / Texts / Feedback / Referrals / Forms / Application / AI), a sticky action bar, the note composer, and the reverse-chronological activity feed. The candidate header spans bands 2+3: candidate name with current company and social-profile icons, email and phone directly under the name, and the primary action bar. IMPORTANT HONESTY NOTE: Ashby's public documentation never states a column count, never gives pixel widths, and one KB page explicitly 'doesn't detail a strict left/center/right panel layout' \u2014 it describes 'a vertically-organized profile with tabbed navigation.' The three-band reading and EVERY pixel figure below are my ESTIMATES, reconciling the documented tab/section names with conventional ATS desktop layout. The default landing view is the Feed. There is no evidence of a true right rail; job/application context appears as a switcher ('Considered for jobs') rather than a dedicated right column.",
+   "columns_note": "3 content bands + full-width header; no confirmed right rail"
+  },
+  "regions": [
+   {
+    "name": "Global Navigation Sidebar",
+    "position": "left",
+    "widthPx": 224,
+    "contents": [
+     "Ashby logo / org switcher",
+     "Home",
+     "Candidate Pipeline (Leads, Application Review, Active, Pending Offer, Hired, Archived)",
+     "Jobs",
+     "Candidates",
+     "Analytics",
+     "Search",
+     "Settings / user avatar"
+    ],
+    "confirmed": false
+   },
+   {
+    "name": "Candidate Header (spans detail rail + feed)",
+    "position": "top",
+    "widthPx": 1216,
+    "contents": [
+     "Candidate full name (largest type on screen)",
+     "Current / most recent company beside or under the name",
+     "Icons linking to social profiles (LinkedIn, GitHub, personal site)",
+     "Email address and phone number rendered directly under the name",
+     "Quick actions: email, call, SMS, view social links, view resume",
+     "Primary action bar (see actionBar)",
+     "Current stage + job the candidate is being considered for",
+     "Tags"
+    ],
+    "confirmed": true
+   },
+   {
+    "name": "Candidate Detail Rail \u2014 the 'Summary' tab",
+    "position": "left",
+    "widthPx": 336,
+    "contents": [
+     "Email address(es)",
+     "Phone number (primary, personal)",
+     "Social links (LinkedIn etc.)",
+     "Location / structured location data",
+     "Source and source site",
+     "Credited to (sourcing credit)",
+     "Tags",
+     "CANDIDATE CUSTOM FIELDS \u2014 this is where Sam's four custom fields render",
+     "'Other Files' section \u2014 resume, cover letter, and additional uploaded files",
+     "Most recent company, years of experience, current job title"
+    ],
+    "confirmed": true
+   },
+   {
+    "name": "Main Feed Column",
+    "position": "center",
+    "widthPx": 880,
+    "contents": [
+     "Tab bar: Feed (default), Notes, Emails, Texts, Feedback, Referrals, Forms, Application, Activities, AI",
+     "Sticky action bar at the top of the Feed and Notes tabs (add note, log outreach, submit feedback)",
+     "Note composer \u2014 inline rich text editor with auto-saved drafts",
+     "Reverse-chronological activity feed: notes, feedback/scorecards, emails, referrals, forms, stage changes, interviews scheduled/rescheduled/cancelled, interview holds, availability submissions, sequence subscribe/unsubscribe, survey requests, application transfers, profile merges",
+     "Pinned notes surface at the top of the feed",
+     "Activity prompts (Application Review, Schedule Interview, Take Home, Send Email, Schedule Questionnaire, E-Signature)"
+    ],
+    "confirmed": true
+   },
+   {
+    "name": "Right Rail",
+    "position": "right",
+    "widthPx": 0,
+    "contents": [
+     "NOT EVIDENCED \u2014 no Ashby documentation describes a persistent right column on the candidate record. Job/application context is reached via a 'Considered for jobs' switcher and the 'Application' tab, not a right rail. The AI Candidate Assistant opens from an 'AI tab within the feed section', i.e. inside the center column, not as a right rail."
+    ],
+    "confirmed": false
+   }
+  ],
+  "actionBar": [
+   "New activity",
+   "New interview",
+   "Email",
+   "Change stage",
+   "Archive (this is Ashby's 'reject' \u2014 Ashby archives rather than labelling a Reject button on the profile)",
+   "More (overflow menu)",
+   "Follow-up (exposes the follow-up note as a popover on the button)",
+   "Quick actions in header: email / call / SMS / social links / view resume",
+   "In BULK APPLICATION REVIEW only: Advance, Reject, Custom next steps, and next/previous application navigation"
+  ],
+  "customFields": {
+   "location": "The 'Summary' tab of the candidate profile \u2014 in my three-band reading, the left candidate detail rail. Ashby's KB states this twice and unambiguously: 'candidate custom fields appear on the summary tab of the candidate profile', and the Summary tab holds 'candidate details, such as their email address, phone number, social links, any candidate custom fields, and additional uploaded files.' Custom fields are NOT in the feed, NOT in the header, and NOT in a separate 'Details' panel \u2014 no such panel is named anywhere in Ashby's documentation.",
+   "rendering": "Label + value rows, stacked vertically, sharing the Summary tab's single narrow column with the built-in candidate attributes above them. Fields appear 'ready to fill out', implying an editable/inline-edit control per row rather than static text, and empty fields still render their label. Supported field types are: Yes/No toggle, Short answer (single line text), Date, Multiple choice (radio), Checkboxes (multi-select), Number input, Currency, Long unformatted answer (multi-line), URL, and Employee (single-select dropdown of employees). Sam's four fields map to three Number rows (Sam Role Fit, Sam Evidence Coverage, Sam Capability Score) and one Short answer row (Sam Pool Rank). At an estimated 336px rail width with ~16px padding each side, the usable value width is roughly 304px \u2014 narrow, so a long value wraps or truncates. Note the constraint this creates: a Number field renders as a bare number with no unit and no room for the coverage denominator, so 'Sam Role Fit' and 'Sam Evidence Coverage' must be two separate rows rather than one '72% (of 18 observable)' string. Custom fields can also be auto-populated by linking application form questions to candidate fields via admin > jobs & applications.",
+   "confirmed": true
+  },
+  "files": {
+   "rendering": "Files live in an 'Other Files' section on the Summary tab \u2014 the same tab as custom fields. Documentation confirms 'files uploaded via the application form can be added to the other files section within the summary tab of the candidate's profile.' Each file appears as a LIST ROW (not a chip), carrying a filename, an optional File Category, an optional description, and a privacy state. File categories are configurable under admin > Organization Setup; the defaults are Cover letter, Other, Reference letter, Transcript, and Writing sample. Each file is either public (visible to everyone with candidate access) or private (org admins / elevated access only), and a file's privacy is managed independently of its source \u2014 an email can stay private while the resume it carried is made visible. Email attachments render inline in the feed as emails sync, with a modal to save them into Other Files (choose category, edit auto-populated description, set privacy); once saved, the attachment is marked in the feed so the team can see it was kept. Upload limit is 50MB; supported types include PDF, DOC, DOCX, JPG, JPEG, PNG, and MP4 \u2014 executables and some text formats are rejected. Ashby explicitly surfaces 'relevant candidate documents ... including PDF and DOCX files like resumes and cover letters, as well as images.' The resume also appears via a header quick-action ('viewing social links and resumes'), and Ashby resolves which resume shows: the one uploaded on the application form displays on BOTH the application and the candidate profile.",
+   "hasInlineViewer": true,
+   "confirmed": false
+  },
+  "notes": {
+   "rendering": "A note renders as a card in the Feed (and is filterable into the dedicated Notes tab). The card carries the author (name + avatar), a timestamp, and the note body. Around it: emoji reactions, a 'reply' affordance directly underneath the note record, a pin control that pins the note to the top of the candidate feed, and edit/delete \u2014 a user may only edit their OWN note ('it is not possible to edit a note on behalf of another user'). @mentions of specific users are supported and notify them. The composer is an inline rich text editor sitting under a sticky action bar at the top of the Feed and Notes tabs, and drafts auto-save. Ashby's AI Content Assistant offers inline 'Refine' inside this and every other rich text editor. Interview reminder and confirmation emails collapse by default in the feed to reduce clutter \u2014 evidence that Ashby DOES collapse verbose feed items, though no equivalent collapse is documented for notes.",
+   "supportsRichText": true,
+   "supportsLinks": true,
+   "truncation": "NOT DOCUMENTED \u2014 no character count, line count, or 'show more' threshold for notes appears anywhere in Ashby's public docs or API reference. What IS documented is adjacent: certain email feed items collapse by default, and a follow-up note was surfaced as a popover specifically because 'the note could be lost in the candidate's feed' \u2014 both imply long feed content gets condensed. Treat any truncation figure in the mockup as invented. My working assumption for the mockup is a clamp around 8-12 rendered lines (~600-900 characters at an estimated 816px card content width) with a 'Show more' expander; this is a GUESS and is listed as such.",
+   "confirmed": true,
+   "htmlWhitelist": "HARD CONSTRAINT, confirmed from developers.ashbyhq.com: a note may be submitted as type text/plain or text/html. For text/html Ashby supports EXACTLY these elements \u2014 Bold <b>, Italic <i>, Underline <u>, Links <a>, Bulleted Lists <ul>/<li>, Ordered Lists <ol>/<li>, Code <code>, Code Block <pre>. 'Any unsupported elements will be stripped out of the note's content before posting.' So <a> links ARE clickable \u2014 our Snapshot link survives \u2014 but <h1>-<h6>, <table>, <img>, <div>, <span>, <strong>, <em>, and (critically) <br> and <p> are all absent from the whitelist. The Snapshot note must therefore be built from <b>/<ul>/<li>/<a>/<code> only, with list items carrying the line structure that <br> would otherwise provide. No table, no image, no heading \u2014 the Snapshot summary has to degrade to a bulleted list."
+  },
+  "guesses": [
+   {
+    "topic": "Column count and overall geometry",
+    "assumption": "Three vertical bands at 1440px \u2014 a 224px global nav sidebar, a 336px candidate detail rail rendering the Summary tab, and an 880px main feed column, under a full-width candidate header.",
+    "questionForAshby": "At a 1440px desktop viewport, how many columns does the candidate record actually have, and what are the real pixel widths of the global nav, the candidate detail rail, and the feed column? Is the layout fluid, or does the feed column have a fixed max-width?"
+   },
+   {
+    "topic": "Whether 'Summary' is a persistent rail or a switched tab",
+    "assumption": "Summary renders as an always-visible left rail alongside the feed on desktop, rather than a tab you switch to that replaces the feed. Ashby's docs call it a 'tab', which on mobile clearly replaces the view.",
+    "questionForAshby": "On desktop, is the Summary content (email, phone, social links, custom fields, Other Files) persistently visible next to the feed, or does selecting 'Summary' swap out the feed? If persistent on desktop and tabbed on mobile, at what breakpoint does it collapse?"
+   },
+   {
+    "topic": "Right rail existence",
+    "assumption": "There is no persistent right column on the candidate record; job/application context is reached via the 'Considered for jobs' switcher and the Application tab, and the AI assistant opens inside the feed column.",
+    "questionForAshby": "Is there a right-hand rail on the candidate record at wide viewports \u2014 for job/application context, stage, or the AI assistant? If so what does it contain and how wide is it?"
+   },
+   {
+    "topic": "Custom field row rendering",
+    "assumption": "Custom fields render as stacked label + value rows within the Summary tab's single narrow column, with inline editing, and empty fields still show their label.",
+    "questionForAshby": "How exactly does a custom field row render \u2014 is the label above the value or beside it, what is the label's typographic treatment, is the value inline-editable in place, and are empty custom fields hidden or shown with a placeholder?"
+   },
+   {
+    "topic": "Number custom field formatting",
+    "assumption": "A Number custom field renders as a bare numeral with no unit, suffix, or precision control, so a percentage must be written as its own field and its coverage denominator as a separate field.",
+    "questionForAshby": "Can a Number custom field carry a unit, suffix, or fixed decimal precision (e.g. render 72 as '72%')? If not, is Short answer the recommended type for a value that must display its unit?"
+   },
+   {
+    "topic": "Custom field ordering and grouping",
+    "assumption": "Custom fields appear below the built-in candidate attributes on the Summary tab, in the order they were created, with no grouping or section headers available.",
+    "questionForAshby": "Can custom fields be reordered, grouped under section headings, or pinned above the built-in attributes on the Summary tab? Where in the Summary tab's vertical order does the first custom field land?"
+   },
+   {
+    "topic": "Built-in PDF viewer / inline preview",
+    "assumption": "Ashby renders an attached PDF resume in an inline preview or viewer pane rather than forcing a download, since the header offers a 'view resume' quick action and Ashby says it 'surfaces relevant candidate documents including PDF and DOCX'.",
+    "questionForAshby": "Does Ashby have a built-in PDF viewer on the candidate record? When a recruiter clicks a file in Other Files or the header's resume action, does it open an inline preview pane, a modal viewer, a new tab, or a download? Are DOCX files rendered too, or only PDFs?"
+   },
+   {
+    "topic": "How a file row looks in 'Other Files'",
+    "assumption": "Each file is a list row with filename, category badge, and privacy indicator \u2014 not a card or a thumbnail chip.",
+    "questionForAshby": "What does a single row in the Other Files section look like \u2014 does it show a file-type icon, thumbnail, upload date, uploader, file size, and category badge? Is there a row-level overflow menu?"
+   },
+   {
+    "topic": "Note truncation threshold",
+    "assumption": "A long note is clamped at roughly 8-12 rendered lines (~600-900 characters) with a 'Show more' expander.",
+    "questionForAshby": "Are long notes truncated in the candidate feed? If so, at what threshold (characters, lines, or pixel height), and is the control labelled 'Show more'? This determines how much of Sam's Snapshot summary is visible before a recruiter has to click."
+   },
+   {
+    "topic": "Whether <br> and <p> survive the note sanitiser",
+    "assumption": "They do not \u2014 neither appears in Ashby's documented whitelist, so line breaks must come from <ul>/<li> structure.",
+    "questionForAshby": "The documented text/html whitelist is <b>, <i>, <u>, <a>, <ul>, <li>, <ol>, <code>, <pre>. Are <p> and <br> silently stripped? If so, what is the recommended way to produce a hard line break inside a note? Do <strong> and <em> get normalised to <b>/<i> or dropped entirely?"
+   },
+   {
+    "topic": "Link rendering inside a note",
+    "assumption": "An <a> in a note renders as a visibly styled, clickable link that opens in a new tab.",
+    "questionForAshby": "How does an <a> render inside a note \u2014 is it colour-styled and underlined, does it open in a new tab, is target/rel preserved, and are absolute URLs to external hosts allowed or rewritten through a redirector?"
+   },
+   {
+    "topic": "Note card content width",
+    "assumption": "~816px of usable body width inside an 880px feed column, which is what I am sizing the Snapshot note block against.",
+    "questionForAshby": "What is the actual content width of a note card in the feed at a 1440px viewport, and does the feed column have a max-width that stops it growing on wider screens?"
+   },
+   {
+    "topic": "Default landing tab",
+    "assumption": "The Feed is the default view when a recruiter opens a candidate record.",
+    "questionForAshby": "Which tab is selected by default when opening a candidate profile \u2014 Feed, Summary, or Application? Does it remember the last tab per user?"
+   },
+   {
+    "topic": "Header height and stage/job display",
+    "assumption": "The candidate header is roughly 120-160px tall and displays the current stage and the job as a pill or breadcrumb near the action bar.",
+    "questionForAshby": "How tall is the candidate header, and where exactly do the current stage and the job being considered for appear? Does the header stick on scroll?"
+   },
+   {
+    "topic": "Avatar and initials treatment",
+    "assumption": "Candidates without a photo get a circular initials monogram, roughly 40-48px in the header.",
+    "questionForAshby": "Does the candidate header show an avatar? If a candidate has no photo, is it an initials monogram, a generic icon, or nothing \u2014 and what size is it?"
+   },
+   {
+    "topic": "Where an integration's output is expected to land",
+    "assumption": "A third-party scoring integration should write numeric custom fields (Summary tab), attach its PDF to Other Files (Summary tab), and post a linked HTML note (Feed) \u2014 three separate surfaces.",
+    "questionForAshby": "Is there a supported surface for a partner-generated candidate summary to render as a first-class block on the profile \u2014 an app/extension slot, a custom section, or an embedded panel \u2014 rather than being split across custom fields, Other Files, and a note?"
+   },
+   {
+    "topic": "Scorecards vs Feedback naming",
+    "assumption": "What other ATSs call 'scorecards' Ashby surfaces under the 'Feedback' tab, and candidate reviews also land there.",
+    "questionForAshby": "Is 'Feedback' the only tab for structured interview scorecards, and do AI-assisted application review verdicts appear there too or only in the Application tab?"
+   },
+   {
+    "topic": "Application review screen proportions",
+    "assumption": "Bulk application review is a split view with the resume/form answers occupying the majority of the width and a narrower action/score column beside it.",
+    "questionForAshby": "In bulk Application Review, what is the split between the document pane and the scoring/action pane, and are the three content toggles (all info / form answers only / resume only) tabs or a segmented control?"
+   }
+  ],
+  "sources": [
+   "https://docs.ashbyhq.com/candidate-profile",
+   "https://docs.ashbyhq.com/candidate-profile-candidate-feed",
+   "https://docs.ashbyhq.com/candidates",
+   "https://docs.ashbyhq.com/candidate-files-and-file-categories",
+   "https://docs.ashbyhq.com/custom-fields",
+   "https://docs.ashbyhq.com/activities",
+   "https://docs.ashbyhq.com/application-review",
+   "https://docs.ashbyhq.com/candidate-pipeline",
+   "https://docs.ashbyhq.com/ashby-subject-and-field-definitions",
+   "https://docs.ashbyhq.com/ai-candidate-assistant",
+   "https://developers.ashbyhq.com/reference/candidatecreatenote",
+   "https://developers.ashbyhq.com/reference/candidatelistnotes",
+   "https://developers.ashbyhq.com/llms.txt",
+   "https://www.ashbyhq.com/product-updates/mobile-web-improvements-roundup",
+   "https://www.ashbyhq.com/product-updates/save-attachments-from-email",
+   "https://www.ashbyhq.com/product-updates/candidate-review-profile",
+   "https://www.ashbyhq.com/product-updates/ai-assisted-application-review",
+   "https://www.ashbyhq.com/product-updates/resume-display",
+   "https://www.ashbyhq.com/product-updates/view-followup-note",
+   "https://www.ashbyhq.com/product-updates/collapse-email-candidate-feed",
+   "https://www.ashbyhq.com/product-updates/auto-save-draft-notes-on-the-candidate-profile",
+   "https://www.ashbyhq.com/product-updates/create-custom-fields-for-archive-details",
+   "https://www.ashbyhq.com/platform/recruiting/ats",
+   "https://www.ashbyhq.com/blog/recruiting/ai-assisted-application-review-in-practice"
+  ]
+ },
+ "surfaces": {
+  "surfaces": [
+   {
+    "endpoint": "POST /candidate.uploadFile",
+    "name": "Candidate file attachment (non-resume)",
+    "carries": "An arbitrary binary file \u2014 our rendered one-page Snapshot PDF. Two modes: multipart/form-data with a `file` part, or JSON `{candidateId, fileHandle}` where the handle comes from file.createFileUploadHandle (which takes `filename`, `contentType`, `contentLength`, so the display name and MIME type are fully under our control).",
+    "appearsOn": "The candidate's Files section on the candidate profile, alongside (not replacing) the real resume. Exact tab label/placement is inferred, not documented.",
+    "fidelity": "full",
+    "whatSurvives": "Everything. It is our own PDF bytes, byte-for-byte: typography, grid, colour, charts, coverage bars, evidence quotes, page geometry. Ashby stores and serves the file rather than re-rendering it. We also control the filename, so it can read 'Sam Snapshot \u2014 Aditya Alapati.pdf'.",
+    "whatIsLost": "Nothing visual. What is lost is machine-readability: no value in it is sortable, filterable, or reportable inside Ashby, and nothing shows without a click to open the file. It is a document, not data.",
+    "confirmed": true,
+    "requiresPartnerAccess": false,
+    "docsUrl": "https://developers.ashbyhq.com/reference/candidateuploadfile"
+   },
+   {
+    "endpoint": "POST /candidate.uploadResume",
+    "name": "Candidate resume slot",
+    "carries": "A binary file in the resume slot specifically. multipart with a `resume` part, or JSON `{candidateId, resumeHandle}`.",
+    "appearsOn": "The resume/preview pane on the candidate profile \u2014 the highest-traffic real estate on the screen.",
+    "fidelity": "full",
+    "whatSurvives": "Identical pixel fidelity to candidate.uploadFile, but in a far more prominent slot that renders inline in Ashby's document preview instead of requiring a download.",
+    "whatIsLost": "Nothing visual, but the semantics are wrong and the cost is real: this is the resume slot. Writing a Snapshot here risks displacing or competing with the candidate's actual resume, and Ashby runs resume parsing over this slot, so our design may be scraped into candidate fields as if it were the candidate's own CV.",
+    "confirmed": true,
+    "requiresPartnerAccess": false,
+    "docsUrl": "https://developers.ashbyhq.com/reference/candidateuploadresume"
+   },
+   {
+    "endpoint": "POST /file.createFileUploadHandle",
+    "name": "Presigned upload handle (enabler for both file surfaces)",
+    "carries": "Not content itself \u2014 a presigned S3-style URL. Takes `fileUploadContext` (must be one of `CandidateResume`, `CandidateFiles`, `ApplicationForm`), `filename`, `contentType`, `contentLength`. Presigned URL expires after 10 minutes.",
+    "appearsOn": "Nowhere directly. Feeds candidate.uploadFile and candidate.uploadResume.",
+    "fidelity": "full",
+    "whatSurvives": "Full fidelity, since it carries raw bytes out-of-band and never passes them through the JSON API. This is the route that sets the user-visible filename \u2014 the multipart route derives the name from the part instead.",
+    "whatIsLost": "Nothing. The only constraints are the 10-minute expiry and the fixed three-value context enum \u2014 note `CandidateFiles` is the context to use for a Snapshot, not `CandidateResume`.",
+    "confirmed": true,
+    "requiresPartnerAccess": false,
+    "docsUrl": "https://developers.ashbyhq.com/reference/filecreatefileuploadhandle"
+   },
+   {
+    "endpoint": "POST /candidate.createNote",
+    "name": "Activity-feed note \u2014 HTML mode",
+    "carries": "CORRECTION TO OUR CURRENT ASSUMPTION: `note` is not plain-text-only. It accepts either a bare string OR an object `{ type, value }` where `type` is `text/plain` or `text/html`. It also accepts `sendNotifications` (bool), `isPrivate` (bool, needs the private-fields API key permission), and `createdAt` (ISO string to backdate).",
+    "appearsOn": "The candidate's activity feed, inline, no click required. `sendNotifications: true` also pushes it to every user subscribed to the candidate.",
+    "fidelity": "high",
+    "whatSurvives": "Real rendered markup: headings, bold/emphasis, lists, links, and probably tables. Enough to reconstruct the Snapshot's information architecture in the feed \u2014 score headline, coverage caveat, per-anchor MET/PARTIAL/NOT_MET/NOT_COLLECTED rows, and quoted evidence \u2014 as styled HTML the reviewer reads without leaving the page. This is the best in-Ashby-chrome rendering available to a non-partner and is materially better than the plain-text-plus-deep-link we currently ship.",
+    "whatIsLost": "Almost certainly all CSS: Ashby will sanitise submitted HTML down to the subset its own rich-text editor supports, so custom fonts, colour, spacing, the grid, and any SVG/chart are lost. No embedded images can be assumed. The sanitiser's exact allow-list is undocumented \u2014 this must be probed empirically.",
+    "confirmed": true,
+    "requiresPartnerAccess": false,
+    "docsUrl": "https://developers.ashbyhq.com/reference/candidatecreatenote"
+   },
+   {
+    "endpoint": "POST /candidate.addEmailMessage",
+    "name": "Attached email message (HTML body)",
+    "carries": "`body` is documented verbatim as 'The html body of the email'. Also takes `candidateId`, `emailProviderEmailId` (must be unique per API key \u2014 a natural idempotency key), `subject`, `from`, `to`, optional `cc`, `userId`, `sentAt`.",
+    "appearsOn": "The candidate's email thread / activity feed, rendered as a received message.",
+    "fidelity": "high",
+    "whatSurvives": "An HTML document body. Email-client-style rendering typically tolerates a wider markup and inline-style subset than a note sanitiser does, so a table-based, inline-styled Snapshot could survive substantially intact \u2014 potentially the richest in-chrome rendering available without partner status.",
+    "whatIsLost": "Unknown sanitisation envelope, and the semantics are frankly wrong: this surface asserts that an email was sent to or from the candidate. Fabricating a message that no one sent, with `from`/`to` addresses we invent, pollutes the communication record and would mislead a recruiter reading the thread. Recommend against shipping this without explicit customer consent, and flag it to Ashby.",
+    "confirmed": true,
+    "requiresPartnerAccess": false,
+    "docsUrl": "https://developers.ashbyhq.com/reference/candidateaddemailmessage"
+   },
+   {
+    "endpoint": "POST /assessment.addCompletedToCandidate",
+    "name": "Completed assessment card (Assessments Partner framework)",
+    "carries": "THE HIGHEST-VALUE STRUCTURED SURFACE. Body: `candidateId`, `partnerId`, `timestamp`, and `assessment` = `{assessmentTypeId, assessmentId, assessmentName, result, metadata[]}`. Both `result` and every entry of the unbounded `metadata[]` array are typed display objects: `{identifier, label, description?, type, value}`. The `type` enum is exactly: `boolean_success`, `numeric_score`, `numeric_duration_milliseconds`, `numeric_duration_minutes`, `single_sign_on_url`, `string`, `numeric_timestamp_milliseconds`, `url`.",
+    "appearsOn": "A native Ashby assessment card on the candidate, titled with our `assessmentName`. Ashby renders each typed value with our `label` and optional `description`. Precise placement is not documented.",
+    "fidelity": "medium",
+    "whatSurvives": "The Snapshot's *semantic structure*, natively and first-class. `metadata[]` has no documented upper bound, so every anchor can be its own labelled, described row: Role Fit and Capability as `numeric_score`, Pool Rank as `string`, per-anchor outcomes as `boolean_success` or `string`, and \u2014 critically \u2014 Evidence Coverage carried as its own `numeric_score` with a `description`, so a percentage is never displayed without its denominator. The `description` field is the only surface in the whole API that lets us attach an explanation to a number *in Ashby's own chrome*. `single_sign_on_url` and `url` types then carry a deep link to the fully designed hosted Snapshot from inside that same card.",
+    "whatIsLost": "All visual design. Ashby, not us, controls layout, type, and colour \u2014 we supply labelled scalars and it renders them in its house style. No image, no chart, no PDF. Also gated: `partnerId` is issued only on becoming a registered Ashby assessments partner, so this is unavailable to a plain API-key integration.",
+    "confirmed": true,
+    "requiresPartnerAccess": true,
+    "docsUrl": "https://developers.ashbyhq.com/reference/assessmentaddcompletedtocandidate"
+   },
+   {
+    "endpoint": "POST /assessment.update",
+    "name": "In-flight assessment status update (Assessments Partner framework)",
+    "carries": "`assessment_id`, `timestamp`, `assessment_status` (required unless `cancelled_reason` is set), `assessment_profile_url` (required whenever `assessment_result` is set, and documented as always being type `url`), plus `assessment_result` and `metadata`. Every one of these uses the same `{identifier, label, description, type, value}` typed-display shape and the same eight-value type enum as addCompletedToCandidate.",
+    "appearsOn": "The live assessment card on the candidate/application while the assessment is in progress. Setting `assessment_status` to 'Started' makes Ashby record the start timestamp.",
+    "fidelity": "medium",
+    "whatSurvives": "Same structured fidelity as the completed-assessment card, but streamed over the assessment's lifecycle \u2014 so a long-running scoring job can show progress rather than appearing only at the end. `assessment_profile_url` is a first-class, guaranteed-rendered link back to our hosted Snapshot page.",
+    "whatIsLost": "Same as above: labelled scalars only, no design. Additionally this endpoint is reachable only *after* Ashby has called our `/assessment.start` \u2014 it cannot be used to push a score at an arbitrary moment, which makes it a poor fit for our webhook-triggered flow unless we are in the interview plan.",
+    "confirmed": true,
+    "requiresPartnerAccess": true,
+    "docsUrl": "https://developers.ashbyhq.com/reference/assessmentupdate"
+   },
+   {
+    "endpoint": "POST /applicationFeedback.submit",
+    "name": "Interview scorecard / structured feedback",
+    "carries": "`applicationId`, `formDefinitionId`, optional `userId` (feedback is credited to this user, defaulting to the API key user), and `feedbackForm.fieldSubmissions[]` of `{path, value}`. Documented field types: `Boolean`, `CompensationRange`, `Currency`, `Date`, `Email`, `LongText`, `Phone`, `String`, `MultiValueSelect`, `Number` (integer), `NumberRange`, `RichText`, `Score`, `Url`, `UUID`, `ValueSelect`, and a Location type. `Score` is `{score: 1..4}` with optional `comments`.",
+    "appearsOn": "The application's Feedback/Scorecards tab \u2014 the same place human interviewer scorecards land, and the surface Ashby's own reports and comparison views aggregate.",
+    "fidelity": "medium",
+    "whatSurvives": "Scores as native, aggregatable scorecard data sitting next to human feedback rather than beside it. `LongText` carries unlimited prose (evidence quotes, coverage caveats), `Url` carries the deep link, `Score` carries a 1-4 rating with attached comments, `MultiValueSelect` can carry anchor outcomes. Strongest surface for making Sam's judgement *comparable* to a human's inside Ashby's existing rituals.",
+    "whatIsLost": "All design, and the 1-4 `Score` scale is lossy for a percentage \u2014 our Role Fit must be quantised or pushed to `Number` instead. Explicitly documented limit: `RichText` fields CANNOT accept rich text via the API; they accept only `{type: \"PlainText\", value: \"...\"}`, so even the rich field is plain. Heavily gated by configuration: we cannot invent the form \u2014 a matching feedback form definition must already exist in the customer's Ashby (discoverable via feedbackFormDefinition.list), and its `path` values dictate our payload. Attribution is also awkward: the feedback is credited to a *user*, so Sam appears to be a person who left a scorecard.",
+    "confirmed": true,
+    "requiresPartnerAccess": false,
+    "docsUrl": "https://developers.ashbyhq.com/reference/applicationfeedbacksubmit-1"
+   },
+   {
+    "endpoint": "POST /applicationFeedbackRequest.create",
+    "name": "Feedback request without an interview (enabler for scorecards)",
+    "carries": "Creates a feedback request on an application with no scheduled interview, and returns an `interviewEventId` that can then be passed to applicationFeedback.submit. The interview used must be configured to request feedback.",
+    "appearsOn": "Nowhere on its own; it manufactures the hook that lets applicationFeedback.submit attach to an application that has no interview yet.",
+    "fidelity": "medium",
+    "whatSurvives": "This is the missing link that makes the scorecard surface usable at application-submit time. Without it, applicationFeedback.submit is bound to real scheduled interviews and cannot fire on our applicationSubmit webhook.",
+    "whatIsLost": "Carries no Snapshot content itself. Adds another configuration dependency \u2014 an interview configured to request feedback must exist.",
+    "confirmed": true,
+    "requiresPartnerAccess": false,
+    "docsUrl": "https://developers.ashbyhq.com/reference/applicationfeedbackrequestcreate-1"
+   },
+   {
+    "endpoint": "POST /customField.setValues",
+    "name": "Batch custom-field write (upgrade over setValue)",
+    "carries": "`objectId`, `objectType` (enum: `Application`, `Candidate`, `Job`, `Opening`), and `values[]` of `{fieldId, fieldValue}`. Sets many fields in ONE call. Ashby's docs explicitly recommend it over setValue: 'This is the recommended approach when updating multiple fields on the same object to avoid race conditions that can occur with concurrent customField.setValue calls.'",
+    "appearsOn": "The custom-fields panel in the candidate/application profile sidebar; also sortable, filterable, and reportable across the pipeline.",
+    "fidelity": "medium",
+    "whatSurvives": "Every scalar Sam produces \u2014 Role Fit, Evidence Coverage, Capability, Pool Rank \u2014 written atomically. Highest *operational* fidelity of any surface: these are the only values a recruiter can sort a pipeline by or build a report on. A `Url`-typed field also carries the hosted-Snapshot deep link as a clickable field.",
+    "whatIsLost": "All design and all narrative. Numbers stripped of their evidence. Note it accepts only four `objectType` values \u2014 narrower than customField.create's nine. We should migrate our four SAM_CUSTOM_FIELDS writes from four setValue calls to one setValues call: it is one round trip instead of four and removes a documented race condition.",
+    "confirmed": true,
+    "requiresPartnerAccess": false,
+    "docsUrl": "https://developers.ashbyhq.com/reference/customfieldsetvalues"
+   },
+   {
+    "endpoint": "POST /customField.setValue",
+    "name": "Single custom-field write (currently used)",
+    "carries": "`objectId`, `fieldId` (a UUID resolved via customField.list, never a name), `fieldValue`. Accepted value shapes by field type: Boolean, Date (ISO), LongText/String, ValueSelect, MultiValueSelect (array), Number, Currency `{value, currencyCode}`, NumberRange `{type:\"number-range\", minValue, maxValue}`, CompensationRange, Url (valid http/https), UUID.",
+    "appearsOn": "Custom-fields panel on the candidate or application; sortable and filterable in list views.",
+    "fidelity": "medium",
+    "whatSurvives": "Individual scalars, exactly as today. `LongText` is worth noting \u2014 it is an untruncated prose field we are not currently using, and could carry the Snapshot's summary paragraph and coverage caveat as readable text in the sidebar. `NumberRange` could honestly express a score's confidence interval rather than a false point estimate.",
+    "whatIsLost": "All design. Documented race condition when several are fired concurrently at the same object \u2014 which is exactly what our four parallel writes do.",
+    "confirmed": true,
+    "requiresPartnerAccess": false,
+    "docsUrl": "https://developers.ashbyhq.com/reference/customfieldsetvalue"
+   },
+   {
+    "endpoint": "POST /customField.create",
+    "name": "Provision our own custom fields",
+    "carries": "`fieldType` (enum: `Boolean`, `CompensationRange`, `Currency`, `Date`, `LongText`, `MultiValueSelect`, `Number`, `NumberRange`, `String`, `ValueSelect`, `Url`, `UUID` \u2014 case-sensitive), `objectType` (enum: `Application`, `Candidate`, `Job`, `Employee`, `Talent_Project`, `Opening`, `Offer`, `Opening_Version`, `Offer_Version`), `title`, optional `description`, and `selectableValues[]` for the two select types.",
+    "appearsOn": "Creates the field definition; values then appear wherever custom fields render.",
+    "fidelity": "medium",
+    "whatSurvives": "Removes our dependency on the customer having pre-created 'Sam Role Fit' et al. by hand \u2014 we can self-provision the whole field set on install. Two types matter most and we use neither today: `Url` gives a native clickable link field for the hosted Snapshot, and `LongText` gives a prose field for the coverage caveat. The `description` argument lets each field explain itself in Ashby's UI.",
+    "whatIsLost": "No design. Different, higher permission than the writes: `hiringProcessMetadataWrite`, not `candidatesWrite` \u2014 an API key scoped only for candidate writes cannot self-provision.",
+    "confirmed": true,
+    "requiresPartnerAccess": false,
+    "docsUrl": "https://developers.ashbyhq.com/reference/customfieldcreate"
+   },
+   {
+    "endpoint": "POST /surveySubmission.create",
+    "name": "Survey submission",
+    "carries": "`surveyFormDefinitionId`, `candidateId`, `applicationId`, and `submittedValues` \u2014 a free-form map of form field paths to values.",
+    "appearsOn": "The survey submissions area for the candidate/application; retrievable via surveySubmission.list by surveyType.",
+    "fidelity": "medium",
+    "whatSurvives": "An arbitrary structured key-value payload, more loosely typed than a feedback form, against a survey definition discoverable via surveyFormDefinition.list.",
+    "whatIsLost": "All design. Semantically wrong \u2014 surveys represent responses collected *from the candidate* (EEO, candidate experience), so filing machine scores here misrepresents their provenance and would corrupt the customer's survey reporting. Also requires a pre-existing survey form definition we do not control.",
+    "confirmed": true,
+    "requiresPartnerAccess": false,
+    "docsUrl": "https://developers.ashbyhq.com/reference/surveysubmissioncreate"
+   },
+   {
+    "endpoint": "POST /candidate.addTag",
+    "name": "Candidate tag",
+    "carries": "`candidateId` + `tagId` (UUID only \u2014 no free text at this endpoint). Tags are minted by candidateTag.create, which takes a title and idempotently returns the existing tag if one already matches.",
+    "appearsOn": "Tag chips at the top of the candidate profile, and as a filter facet across candidate search and pipeline list views. Among the most visible elements on the screen.",
+    "fidelity": "low",
+    "whatSurvives": "A single short label \u2014 realistically a band, not a score: 'Sam: Top Decile', 'Sam: Low Coverage'. Its value is disproportionate to its size because it is visible without a click and is filterable in bulk across the whole pipeline.",
+    "whatIsLost": "Everything but the label. No number, no evidence, no link, no ordering. Bands must be pre-minted as tags. Real risk worth flagging: a coarse tag is exactly the artefact people screen on without opening the evidence, which cuts against the coverage discipline the Snapshot exists to enforce.",
+    "confirmed": true,
+    "requiresPartnerAccess": false,
+    "docsUrl": "https://developers.ashbyhq.com/reference/candidateaddtag"
+   },
+   {
+    "endpoint": "POST /candidateTag.create",
+    "name": "Tag minting (enabler)",
+    "carries": "A tag `title`. Documented as idempotent: 'If a tag already exists with the given title, the existing tag will be returned.'",
+    "appearsOn": "Nowhere directly; produces the `tagId` that candidate.addTag requires.",
+    "fidelity": "low",
+    "whatSurvives": "A string. The documented idempotency means we can call it unconditionally on every run without accumulating duplicate tags \u2014 no read-before-write needed.",
+    "whatIsLost": "Carries no candidate content. Requires `hiringProcessMetadataWrite`, a higher permission than the tag write itself.",
+    "confirmed": true,
+    "requiresPartnerAccess": false,
+    "docsUrl": "https://developers.ashbyhq.com/reference/candidatetagcreate-1"
+   },
+   {
+    "endpoint": "POST /candidate.addProject",
+    "name": "Add candidate to a project / talent pool",
+    "carries": "`candidateId` + `projectId`. Paired with candidate.removeProject and candidate.listProjects; projects are discoverable via project.list and project.search.",
+    "appearsOn": "The candidate's project memberships, and the project's own candidate list \u2014 a browsable pool view.",
+    "fidelity": "low",
+    "whatSurvives": "Set membership only \u2014 but it expresses Sam's *pool ranking* natively: a 'Sam \u2014 Top Quartile' project becomes a real, browsable shortlist rather than a number in a sidebar. Note `Talent_Project` is also a valid customField.create objectType, so a project can carry its own scored metadata.",
+    "whatIsLost": "No score, no rank order within the pool, no evidence, no design. Binary in-or-out.",
+    "confirmed": true,
+    "requiresPartnerAccess": false,
+    "docsUrl": "https://developers.ashbyhq.com/reference/candidateaddproject-1"
+   },
+   {
+    "endpoint": "POST /application.changeStage",
+    "name": "Move or archive an application",
+    "carries": "`applicationId`, `interviewStageId`, plus `archiveReasonId` (required when moving to a stage of type `Archived`) and an optional `archiveEmail` `{communicationTemplateId, sendAt}` that will email the candidate.",
+    "appearsOn": "The application's pipeline position \u2014 and, if archiveEmail is used, the candidate's inbox.",
+    "fidelity": "minimal",
+    "whatSurvives": "No Snapshot content at all. This is an action surface, not a placement surface: it converts a score into a pipeline movement.",
+    "whatIsLost": "Everything. Listed deliberately as the surface we should NOT build: auto-advancing or auto-archiving on a machine score \u2014 with an `archiveEmail` that reaches the candidate \u2014 is an irreversible decision taken from a number whose own coverage metric may say the evidence was never collected. Sam's whole design argues for informing the human, not replacing them. Recommend documenting this as an explicit non-goal.",
+    "confirmed": true,
+    "requiresPartnerAccess": false,
+    "docsUrl": "https://developers.ashbyhq.com/reference/applicationchangestage"
+   },
+   {
+    "endpoint": "POST /application.changeSource",
+    "name": "Set application source",
+    "carries": "A `sourceId` from source.list. Related: candidate.update also takes `sourceId` and `creditedToUserId`; sourceTrackingLink.list enumerates custom tracking links. application.change_source is the deprecated spelling.",
+    "appearsOn": "The source attribution field on the application, and every sourcing report built on it.",
+    "fidelity": "minimal",
+    "whatSurvives": "Attribution only \u2014 that a candidate arrived or was surfaced via Sam. Useful for proving the integration's contribution in the customer's own reporting.",
+    "whatIsLost": "All Snapshot content. Overwriting a genuine source to claim credit would corrupt the customer's sourcing analytics; only correct where Sam genuinely sourced the candidate.",
+    "confirmed": true,
+    "requiresPartnerAccess": false,
+    "docsUrl": "https://developers.ashbyhq.com/reference/applicationchangesource"
+   },
+   {
+    "endpoint": "POST /candidate.update",
+    "name": "Candidate profile fields",
+    "carries": "`name`, `email`, `phoneNumber`, `linkedInUrl`, `githubUrl`, `websiteUrl`, `alternateEmail`, `socialLinks[]` of `{type, url}`, `sourceId`, `creditedToUserId`, `location` `{city, region, country}`, `createdAt`, `sendNotifications`.",
+    "appearsOn": "The candidate's identity header and contact block.",
+    "fidelity": "minimal",
+    "whatSurvives": "Only a URL, and only by abuse: `websiteUrl` or a `socialLinks` entry could technically hold the hosted-Snapshot link. Note `socialLinks` is documented as REPLACING the existing array wholesale, and as silently overriding linkedInUrl/githubUrl/websiteUrl if sent alongside them.",
+    "whatIsLost": "Everything. These fields describe who the candidate *is*; putting our output there overwrites real candidate data and would destroy their LinkedIn/GitHub links. Listed for completeness as a surface to avoid.",
+    "confirmed": true,
+    "requiresPartnerAccess": false,
+    "docsUrl": "https://developers.ashbyhq.com/reference/candidateupdate"
+   },
+   {
+    "endpoint": "POST /application.updateHistory",
+    "name": "Application history events",
+    "carries": "Stage timestamps, and deletion of history events.",
+    "appearsOn": "The application's stage-history timeline.",
+    "fidelity": "minimal",
+    "whatSurvives": "Nothing of the Snapshot \u2014 timestamps only.",
+    "whatIsLost": "All content. Doubly gated: needs `candidatesWrite` AND the separate admin toggle 'Allow updating application history?'. It can DELETE history events, making it destructive. Not a placement surface; recorded so it is not mistaken for one.",
+    "confirmed": true,
+    "requiresPartnerAccess": false,
+    "docsUrl": "https://developers.ashbyhq.com/reference/applicationupdatehistory"
+   },
+   {
+    "endpoint": "POST /candidate.setFraudStatus",
+    "name": "Manual fraud-review status",
+    "carries": "A manual fraud-review status on the candidate. Read side: candidate.listFraudChecks.",
+    "appearsOn": "Ashby's fraud-review indicator on the candidate.",
+    "fidelity": "minimal",
+    "whatSurvives": "A single status enum, unrelated to scoring.",
+    "whatIsLost": "Everything. Explicitly out of scope and named here only to rule it out: a low Sam score is not fraud, and writing one into a fraud field would be a serious mislabelling of a real person with consequences well beyond this integration.",
+    "confirmed": true,
+    "requiresPartnerAccess": false,
+    "docsUrl": "https://developers.ashbyhq.com/reference/candidatesetfraudstatus"
+   },
+   {
+    "endpoint": "POST /application.listCriteriaEvaluations (READ-ONLY)",
+    "name": "Ashby's own AI criteria evaluations",
+    "carries": "Returns Ashby's AI-generated criteria evaluations for an application \u2014 outcome, reasoning, and assessment detail per job requirement. Requires the AI Application Review feature to be enabled. Read permission only (`candidatesRead`); paginated, no incremental sync.",
+    "appearsOn": "Ashby's native AI Application Review panel on the application.",
+    "fidelity": "minimal",
+    "whatSurvives": "Nothing of ours \u2014 there is NO corresponding write endpoint. This is a one-way read.",
+    "whatIsLost": "The whole surface. Important strategic finding: Ashby ships its own per-criterion AI evaluation with outcome-plus-reasoning, structurally very close to Sam's anchor model, and that panel is closed to partners. We cannot render into the place a recruiter already looks for exactly this. Worth asking Ashby directly whether a partner write path is planned \u2014 it would be the single highest-fidelity structured home for Sam's output.",
+    "confirmed": true,
+    "requiresPartnerAccess": false,
+    "docsUrl": "https://developers.ashbyhq.com/reference/applicationlistcriteriaevaluations"
+   },
+   {
+    "endpoint": "POST /assessment.list, /assessment.start, /assessment.cancel (IMPLEMENTED BY PARTNER)",
+    "name": "Inbound assessment lifecycle \u2014 endpoints we host",
+    "carries": "Ashby calls US, at a base URL we register, with Basic Auth using a key the customer pastes into the Ashby admin panel. `assessment.list` takes an empty body and returns our assessment types `{id, name, description?}`. `assessment.start` receives job, candidate and application context and returns our assessment id. `assessment.cancel` takes an id and returns it.",
+    "appearsOn": "`assessment.list` populates the assessment picker inside the customer's interview-plan editor \u2014 Sam appears as a selectable step in the hiring process itself.",
+    "fidelity": "medium",
+    "whatSurvives": "Not content, but *placement*: this is what earns Sam a native position in the interview plan, and it is the precondition for the assessment.update stream. Being choosable in the plan is a stronger integration posture than pushing data at a profile from outside.",
+    "whatIsLost": "No design; these are inbound RPCs. Requires registering as an Ashby assessments partner, hosting a public authenticated base URL, and a per-customer API key. Also inverts our trigger model \u2014 the run is initiated by Ashby at a plan stage, not by our applicationSubmit webhook.",
+    "confirmed": true,
+    "requiresPartnerAccess": true,
+    "docsUrl": "https://developers.ashbyhq.com/docs/creating-an-assessments-integration"
+   },
+   {
+    "endpoint": "POST /customFields.fetch (IMPLEMENTED BY PARTNER)",
+    "name": "Partner custom-field sync \u2014 endpoint we host",
+    "carries": "Ashby calls us with an empty body; we return `{fields: [...]}` of custom field specifications. The admin picks which to enable, Ashby creates linked custom fields on its side, and the entered values are then passed back to our `/assessment.start` as an `additional_fields` map keyed by our ids. Ashby refetches on admin demand, on first settings-page open, and automatically about hourly.",
+    "appearsOn": "The integration's admin pane, and then as integration-linked custom fields in Ashby.",
+    "fidelity": "medium",
+    "whatSurvives": "Lets Sam *declare* its own field schema and have Ashby provision it, rather than asking the customer to hand-create 'Sam Role Fit' or us calling customField.create. The cleanest configuration story available.",
+    "whatIsLost": "No design or scores flow this direction \u2014 it is inbound configuration only. Must be explicitly enabled by Ashby for the integration ('please contact Ashby as it must be enabled'), on top of partner status.",
+    "confirmed": true,
+    "requiresPartnerAccess": true,
+    "docsUrl": "https://developers.ashbyhq.com/docs/creating-an-assessments-integration"
+   },
+   {
+    "endpoint": "Webhooks (INBOUND TRIGGERS, no placement)",
+    "name": "Full documented webhook event list",
+    "carries": "Confirmed complete list of outbound events: applicationSubmit, applicationUpdate, candidateHire, candidateStageChange, candidateDelete, candidateMerge, interviewPlanTransition, interviewScheduleCreate, interviewScheduleUpdate, jobCreate, jobUpdate, jobPostingUpdate, jobPostingPublish, jobPostingUnpublish, offerCreate, offerDelete, offerUpdate, openingCreate, pushToHRIS, ping, surveySubmit, signatureRequestUpdate, jobPostingDelete, takeHomeAssignmentAssigned, takeHomeAssignmentCancelled, takeHomeAssignmentCompleted, takeHomeAssignmentSubmitted, candidateRecentEmailMessagesUpdated. Manageable via webhook.create/update/delete/info.",
+    "appearsOn": "Nothing \u2014 these are inbound to us.",
+    "fidelity": "minimal",
+    "whatSurvives": "No placement whatsoever. Included because it confirms our applicationSubmit choice and surfaces two triggers we do not use: `candidateStageChange` would let Sam re-score against the stage the candidate actually reached, and `applicationUpdate` would catch late-arriving resumes that applicationSubmit fires too early to see \u2014 a real gap in a submit-only model.",
+    "whatIsLost": "n/a \u2014 trigger surface, not a placement surface.",
+    "confirmed": true,
+    "requiresPartnerAccess": false,
+    "docsUrl": "https://developers.ashbyhq.com/docs/setting-up-webhooks"
+   }
+  ],
+  "guesses": [
+   {
+    "topic": "NO embedded UI surface exists (strong negative finding)",
+    "assumption": "I searched the complete llms.txt index and found ZERO documented iframe, embed, panel, widget, app-marketplace, or custom-UI-extension surface. The only two hits for 'embed' both refer to report data being embedded in a JSON response, nothing to do with UI. My conclusion is that Ashby has no public way for a partner to render its own pixels inside the Ashby application \u2014 which means our fully designed Snapshot can only ever live in Ashby as (a) a PDF file, or (b) a link that navigates away. The `single_sign_on_url` assessment type is the closest thing and it still leaves Ashby.",
+    "questionForAshby": "Is there any way \u2014 private beta, partner-only, or on the roadmap \u2014 for an integration to render its own UI inside the Ashby candidate profile: an iframe, an app panel, a card extension, or a custom tab? Today our only routes for a visually designed one-page Snapshot are a PDF attachment or a link that navigates the recruiter out of Ashby, and neither keeps the design in front of the reviewer where the decision is made."
+   },
+   {
+    "topic": "HTML sanitisation allow-list for candidate.createNote",
+    "assumption": "candidate.createNote definitively accepts `{type: \"text/html\", value: ...}` \u2014 that is documented and confirmed. What is NOT documented anywhere is which tags, attributes, and styles survive. I am assuming Ashby sanitises down to its own rich-text editor's subset: headings, bold/italic, lists, links, probably tables, and that ALL CSS (class, style, colour, font) plus images and SVG are stripped. Everything about the exact envelope is unverified and must be probed against a real sandbox.",
+    "questionForAshby": "What exactly survives sanitisation in a `text/html` note? Specifically: are `<table>`, `<img>` (including data: URIs), inline `style` attributes, `class`, and inline `<svg>` preserved or stripped? Is there a documented allow-list and a length cap? This single answer decides whether our in-feed Snapshot can carry a coverage bar chart and colour-coded anchor states, or degrades to a bulleted list."
+   },
+   {
+    "topic": "How Ashby renders the assessment typed-value vocabulary",
+    "assumption": "I have the exact schema and the full eight-value type enum, but nothing in the docs shows the resulting UI. I am assuming `metadata[]` renders as a vertical list of label/value rows with `description` as help text or a tooltip, `numeric_score` renders as a bare number, `boolean_success` as a pass/fail indicator, and `single_sign_on_url` as a button rather than a raw link. The array is documented with `minItems: 1` and no maximum, so I am assuming a dozen-plus anchor rows are acceptable \u2014 but a practical display limit may exist.",
+    "questionForAshby": "Could you share a screenshot of a rendered assessment card? Specifically: how many `metadata[]` entries display before truncation or collapse, is `description` shown inline or on hover, how does `numeric_score` render (raw number, bar, out-of-100?), and what is the practical difference between `url` and `single_sign_on_url` in the UI \u2014 does the latter render as a button and does it carry an SSO token we must verify on our side?"
+   },
+   {
+    "topic": "Ranking a percentage against a 1-4 Score field",
+    "assumption": "applicationFeedback.submit's `Score` type is documented as an integer 1-4 inclusive. Sam produces a percentage with an explicit coverage denominator. I am assuming we must either quantise Role Fit into four bands (losing resolution and, worse, hiding the coverage caveat behind a single digit) or route the real number to a `Number` field and leave `Score` unset. I do not know whether Ashby's comparison and reporting views read only `Score`, which would make the honest option invisible.",
+    "questionForAshby": "If we submit our real percentage to a `Number` field and leave `Score` unset, does the submission still appear in candidate-comparison and scorecard-aggregate views, or do those views key exclusively off `Score`? We would rather not compress a coverage-qualified percentage into a 1-4 rating, but not if that makes the feedback invisible where it counts."
+   },
+   {
+    "topic": "Where candidate.uploadFile output actually appears",
+    "assumption": "I confirmed the endpoint, both upload modes, and that `file.createFileUploadHandle` lets us set `filename` and `contentType`. I am ASSUMING the file lands in a visible Files section on the candidate profile, is previewable inline rather than download-only, and does not displace the resume. None of that placement behaviour is documented.",
+    "questionForAshby": "Where does a file uploaded via candidate.uploadFile appear on the candidate screen, and does Ashby render PDFs inline in its document preview or only offer a download? Is there any way to attach a file to a specific APPLICATION rather than to the candidate \u2014 a candidate applying to three roles gets three different Snapshots, and candidate-level attachment appears to be the only option, which would leave three similarly-named PDFs with nothing distinguishing which role each belongs to."
+   },
+   {
+    "topic": "Obtaining partnerId and the cost of partner status",
+    "assumption": "assessment.addCompletedToCandidate requires a `partnerId` UUID, and the guide says the base URL is provided 'as part of becoming an Ashby assessments partner'. I am assuming this is a commercial/technical onboarding gate that a plain API key cannot satisfy, which would put the two highest-structured-fidelity surfaces out of reach for an initial release. I could not find any self-serve path.",
+    "questionForAshby": "What is the process and timeline for becoming an Ashby assessments partner, and is `assessment.addCompletedToCandidate` usable with a `partnerId` WITHOUT implementing the full inbound assessment.list/start/cancel lifecycle? It is the only endpoint that lets us attach a `description` to a score in Ashby's own chrome, and we would like to know whether it is reachable for a scoring product that is triggered by a webhook rather than selected in an interview plan."
+   },
+   {
+    "topic": "Whether candidate.addEmailMessage is a legitimate use",
+    "assumption": "The `body` field is documented as HTML, which makes this technically the richest in-chrome rendering available without partner status. I am assuming it is intended strictly for syncing genuine messages from an email provider, and that using it to inject a Snapshot would be a misuse that pollutes the candidate's communication record with a message nobody sent. I have recommended against it on those grounds rather than technical ones.",
+    "questionForAshby": "Is candidate.addEmailMessage intended exclusively for mirroring real messages from a connected email provider? We would not ship a fabricated message, but we want to confirm the boundary \u2014 and to ask whether the HTML rendering path it uses could be exposed on a legitimately non-email surface, since it appears to be the most permissive HTML renderer in the product."
+   },
+   {
+    "topic": "A write path into AI Application Review",
+    "assumption": "application.listCriteriaEvaluations is read-only with no write counterpart anywhere in the index. I am assuming the AI Application Review panel is closed to partners and that there is no way for Sam's per-anchor outcomes to appear in the place a recruiter already looks for exactly that shape of information.",
+    "questionForAshby": "Is a partner WRITE path into AI criteria evaluations planned? Sam's anchor model \u2014 per-requirement outcome plus quoted reasoning, with uncollected criteria excluded from the denominator rather than scored as failures \u2014 maps almost exactly onto your criteria-evaluation shape, and that panel would be by far the most natural home for it."
+   },
+   {
+    "topic": "Rate limits, payload caps, and idempotency across a multi-surface write",
+    "assumption": "Building every surface means one webhook fires 6-10 writes per application (file handle, upload, note, several field writes, tag, project). I could not find documented rate limits or per-endpoint payload caps in the pages I read, and only candidate.addEmailMessage has an explicit uniqueness key (`emailProviderEmailId`). I am assuming the other write endpoints are NOT idempotent and would duplicate on a webhook retry \u2014 which matters because Ashby retries, and we key off `webhookActionId` on our side precisely for this reason.",
+    "questionForAshby": "What are the API rate limits, and are any write endpoints idempotent on retry? Concretely: if a delivery is retried after a partial failure, does a second candidate.uploadFile create a duplicate attachment and a second candidate.createNote a duplicate note? Is there an idempotency-key header we should send? And is there a size cap on a note's HTML body or on an uploaded candidate file?"
+   },
+   {
+    "topic": "Timing \u2014 is the resume present when applicationSubmit fires?",
+    "assumption": "We trigger on applicationSubmit. I am assuming the resume is attached and parseable at that moment, but the existence of a separate `applicationUpdate` event and the documented two-step presigned upload flow both suggest a file can land after the application record is created. If so, a submit-only integration would score some candidates against a resume that had not arrived yet \u2014 and Sam would correctly but uselessly report NOT_COLLECTED across the board.",
+    "questionForAshby": "Is the candidate's resume guaranteed to be attached and processed at the moment the applicationSubmit webhook fires, or can it arrive afterwards \u2014 particularly when submitted through the presigned-upload path? If it can lag, which event should we listen to in order to re-score once the document is actually available?"
+   }
+  ],
+  "sources": [
+   "https://developers.ashbyhq.com/llms.txt \u2014 full API index, 262 lines; source of the complete endpoint and webhook enumeration and of several full endpoint descriptions",
+   "https://developers.ashbyhq.com/docs/creating-an-assessments-integration.md \u2014 Assessments Partner framework: the four-step lifecycle, the typed-display data format (identifier/value/type/label/description), and the customFields.fetch sync flow",
+   "https://developers.ashbyhq.com/reference/assessmentaddcompletedtocandidate.md \u2014 full OpenAPI request schema incl. the eight-value type enum and unbounded metadata[]",
+   "https://developers.ashbyhq.com/reference/assessmentupdate.md \u2014 full request schema incl. assessment_status and assessment_profile_url",
+   "https://developers.ashbyhq.com/reference/candidatecreatenote.md \u2014 CONFIRMED text/plain | text/html note object, plus isPrivate, sendNotifications, createdAt",
+   "https://developers.ashbyhq.com/reference/candidateaddemailmessage.md \u2014 CONFIRMED body documented as 'The html body of the email'",
+   "https://developers.ashbyhq.com/reference/candidateuploadfile.md \u2014 multipart and fileHandle modes",
+   "https://developers.ashbyhq.com/reference/candidateuploadresume.md \u2014 multipart and resumeHandle modes",
+   "https://developers.ashbyhq.com/reference/filecreatefileuploadhandle.md \u2014 filename/contentType/contentLength, 10-min expiry, three-value fileUploadContext enum",
+   "https://developers.ashbyhq.com/reference/applicationfeedbacksubmit-1.md \u2014 full field-type table incl. the documented RichText/PlainText-only limitation and Score 1-4",
+   "https://developers.ashbyhq.com/reference/applicationfeedbackrequestcreate-1.md \u2014 feedback request without an interview, returns interviewEventId",
+   "https://developers.ashbyhq.com/reference/customfieldcreate.md \u2014 fieldType and objectType enums",
+   "https://developers.ashbyhq.com/reference/customfieldsetvalues.md \u2014 batch write and the documented race-condition warning against concurrent setValue",
+   "https://developers.ashbyhq.com/reference/customfieldsetvalue.md \u2014 per-type accepted value shapes",
+   "https://developers.ashbyhq.com/reference/candidateaddtag.md \u2014 candidateId + tagId UUID",
+   "https://developers.ashbyhq.com/reference/candidateaddproject-1.md \u2014 candidateId + projectId",
+   "https://developers.ashbyhq.com/reference/applicationchangestage.md \u2014 interviewStageId, archiveReasonId, archiveEmail",
+   "https://developers.ashbyhq.com/reference/applicationupdate.md \u2014 sourceId, creditedToUserId, createdAt",
+   "https://developers.ashbyhq.com/reference/candidateupdate.md \u2014 profile fields incl. socialLinks replace-semantics",
+   "https://developers.ashbyhq.com/reference/surveysubmissioncreate.md \u2014 surveyFormDefinitionId + submittedValues map",
+   "https://developers.ashbyhq.com/reference/applicationlistcriteriaevaluations.md \u2014 read-only AI criteria evaluations (no write counterpart exists)",
+   "Local: /Users/rishitagnihotri/ Projects/ATS_SAM_Deliverable/shared/ashby-contract.js \u2014 the five surfaces already confirmed by the team, used as the baseline to extend",
+   "Local: /Users/rishitagnihotri/ Projects/ATS_SAM_Deliverable/README.md \u2014 Sam's anchor/coverage scoring model, used to judge which surfaces preserve the coverage caveat",
+   "Method note: reference pages embed the full OpenAPI JSON; schemas were extracted and $ref-resolved with a local Node script at /private/tmp/claude-505/-Users-rishitagnihotri--Projects-ATS-SAM-Deliverable/660d84de-13ae-4be0-8969-48ca41ca43d8/scratchpad/extract.mjs rather than read by eye"
+  ]
+ }
+}
