@@ -10,7 +10,7 @@ import { buildSnapshot } from '../sam-integration/render/model.js';
 import { STATE, TOTAL_WEIGHT } from '../sam-integration/services/rubric.js';
 import { verifySignature, parseEnvelope, createDeliveryLog } from '../sam-integration/webhooks/applicationSubmit.js';
 import { SIGNATURE_PREFIX, ENDPOINTS, WEBHOOK_ACTION_APPLICATION_SUBMIT, UPLOAD_HANDLE_PARAMS, ok, fail } from '../shared/ashby-contract.js';
-import { PLACEMENT_VERSIONS, REFUSED, placementById, singlePointFields } from '../sam-integration/placements/registry.js';
+import { PLACEMENT_VERSIONS, REFUSED, INVESTIGATED, placementById, singlePointFields } from '../sam-integration/placements/registry.js';
 import { SNAPSHOT_FIELDS, fidelityScore } from '../sam-integration/placements/fields.js';
 import { composeNoteHtml, composeNote } from '../sam-integration/endpoints/candidate.createNote.js';
 import { STAGES, DELIVERABLES, OUTCOME } from '../sam-integration/delivery/pipeline.js';
@@ -781,5 +781,28 @@ describe('Binding the resume in behind the Snapshot', () => {
     assert.ok(ids.indexOf('stitch') < ids.indexOf('attach'),
       'stitching after the upload would attach the Snapshot without the evidence');
     assert.ok(ids.indexOf('render') < ids.indexOf('stitch'));
+  });
+});
+
+describe('Every version the documentation allows is accounted for', () => {
+  // The brief asks for every version, and the comparison between them is the point. Three
+  // are built. The rest have to carry a stated reason, or "we only built three" reads as an
+  // oversight rather than a decision.
+  test('each unbuilt surface names a real endpoint, a blocker, and what it would give', () => {
+    assert.ok(INVESTIGATED.length >= 5, 'a handful of surfaces were investigated, not one');
+    for (const v of INVESTIGATED) {
+      assert.match(v.endpoint, /^\/[a-zA-Z]+\.[a-zA-Z]+$/, `${v.name} needs a real endpoint`);
+      assert.ok(v.blocker.length > 60, `${v.name} needs a reason, not a shrug`);
+      assert.ok(v.wouldGive.length > 20, `${v.name} has to say what we are giving up`);
+    }
+  });
+
+  test('no surface is both built and listed as unbuilt', () => {
+    const built = new Set(PLACEMENT_VERSIONS.map((p) => p.endpoint));
+    for (const v of INVESTIGATED) {
+      assert.ok(!built.has(v.endpoint), `${v.endpoint} cannot be both`);
+    }
+    assert.ok(!INVESTIGATED.some((v) => v.endpoint === REFUSED.endpoint),
+      'the refused surface has its own section and its own reasoning');
   });
 });

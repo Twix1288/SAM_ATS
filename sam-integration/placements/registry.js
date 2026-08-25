@@ -147,3 +147,62 @@ export function singlePointFields() {
   for (const p of PLACEMENT_VERSIONS) for (const f of p.survives) count.set(f, (count.get(f) ?? 0) + 1);
   return [...count.entries()].filter(([, n]) => n === 1).map(([f]) => f);
 }
+
+/**
+ * Surfaces we investigated and did not build.
+ *
+ * The brief asks for every version the documentation allows, and the comparison between
+ * them is the point. Three were built; these are the rest, with the reason each one is not
+ * on the canvas. Listing them is not an apology — a reader should be able to ask "why not
+ * tags?" and get an answer without opening the research doc.
+ *
+ * `blocker` is why it is not built. `wouldGive` is what we would get if it were, so the
+ * trade is visible rather than asserted.
+ */
+export const INVESTIGATED = [
+  {
+    name: 'Score as candidate tags',
+    endpoint: '/candidate.addTag',
+    blocker: 'A tag is a label, not a number. "Sam: Strong" is a band with no coverage beside '
+      + 'it, and this instrument never produces a band it can stand behind unqualified.',
+    wouldGive: 'Chips in the record header and a search facet, read without a click.',
+  },
+  {
+    name: 'Graded candidates into a Project',
+    endpoint: '/candidate.addProject',
+    blocker: 'Projects are the one surface where custom-field columns are confirmed — so this '
+      + 'is the strongest untaken option, and it is a question for Ashby rather than a refusal. '
+      + 'It moves candidates into a parallel list rather than improving the record they already '
+      + 'have, which is a workflow change their team should agree to first.',
+    wouldGive: 'Sam’s four values as sortable columns — the thing the pipeline cannot confirm.',
+  },
+  {
+    name: 'Snapshot as interview feedback',
+    endpoint: '/applicationFeedback.submit',
+    blocker: 'Feedback is scoped to an interview that happened. Sam’s read comes from an '
+      + 'application-stage instrument, so filing it beside human scorecards would place it in '
+      + 'a stage the candidate has not reached.',
+    wouldGive: 'The Feedback tab, alongside the interviewers’ own scores.',
+  },
+  {
+    name: 'Snapshot as a native assessment',
+    endpoint: '/assessment.addCompletedToCandidate',
+    blocker: 'Partner-gated. This is the one that needs the partner programme, which is the '
+      + 'decision this build exists to inform.',
+    wouldGive: 'Ashby’s own assessment card — the highest-fidelity native surface available.',
+  },
+  {
+    name: 'Advance or archive on the score',
+    endpoint: '/application.changeStage',
+    blocker: 'Sam grades; it does not decide. Moving a candidate on a score this instrument '
+      + 'itself qualifies would make an irreversible call on incomplete evidence.',
+    wouldGive: 'Triage with no human step at all.',
+  },
+  {
+    name: 'Into Ashby’s own AI criteria',
+    endpoint: '/application.listCriteriaEvaluations',
+    blocker: 'Read-only. There is no documented partner write path into Ashby’s AI evaluation, '
+      + 'and that column is the one surface on Application Review you can genuinely sort by.',
+    wouldGive: 'The sortable column, natively, in the exact space Sam wants.',
+  },
+];

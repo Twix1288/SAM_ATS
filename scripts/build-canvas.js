@@ -11,7 +11,7 @@ import { writeFileSync } from 'node:fs';
 import { loadPool } from '../shared/seed/survey.js';
 import { scorePool } from '../sam-integration/services/calibrate.js';
 import { buildSnapshot } from '../sam-integration/render/model.js';
-import { PLACEMENT_VERSIONS, DISPLAY_VERSIONS, DATA_VERSION, REFUSED, singlePointFields } from '../sam-integration/placements/registry.js';
+import { PLACEMENT_VERSIONS, DISPLAY_VERSIONS, DATA_VERSION, REFUSED, INVESTIGATED, singlePointFields } from '../sam-integration/placements/registry.js';
 import { SNAPSHOT_FIELDS, FIELD_BY_ID } from '../sam-integration/placements/fields.js';
 import { STAGES, DELIVERABLES } from '../sam-integration/delivery/pipeline.js';
 import { SAM, TEAL, INK, STATE_COLOR } from '../shared/brand.js';
@@ -255,6 +255,14 @@ td.cell.yes{color:var(--teal)}
 td.cell.no{color:var(--rule)}
 tbody tr:last-child td{border-bottom:none}
 
+.inv{display:grid;gap:1px;background:var(--rule);border:1px solid var(--rule);border-radius:6px;overflow:hidden;margin-top:20px}
+.inv-row{background:var(--paper);padding:15px 18px}
+.inv-h{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:6px}
+.inv-h b{font-size:16px}
+.inv-h code{font-family:ui-monospace,Menlo,monospace;font-size:11.5px;color:var(--faint);background:none;padding:0}
+.inv-why{font-size:14.5px;color:var(--ink);max-width:720px}
+.inv-get{font-size:13px;color:var(--soft);margin-top:7px;max-width:720px}
+.inv-get span{font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--teal-deep);font-weight:700;margin-right:7px}
 .refused{background:var(--paper);border:1px solid var(--miss);border-left:4px solid var(--miss);
   border-radius:0 6px 6px 0;padding:17px 19px;margin:22px 0}
 .refused h4{font-size:17px;font-weight:700;margin-bottom:3px;color:var(--miss)}
@@ -504,7 +512,30 @@ ${[...DISPLAY_VERSIONS, DATA_VERSION].map(versionBlock).join('')}
 </section>
 
 <section class="doc">
-  <div class="sec-h col"><span class="n">07</span><h2>Questions for Ashby</h2></div>
+  <div class="sec-h col"><span class="n">07</span><h2>What else we looked at</h2></div>
+  <div class="col stack">
+    <p class="lede">${INVESTIGATED.length} more surfaces Ashby's documentation allows. None is
+      built, and each one is a deliberate call rather than an oversight — so you can ask why not,
+      and get an answer.</p>
+  </div>
+  <div class="inv">
+    ${INVESTIGATED.map((v) => `
+      <div class="inv-row">
+        <div class="inv-h"><b>${esc(v.name)}</b><code>${esc(v.endpoint)}</code></div>
+        <p class="inv-why">${esc(v.blocker)}</p>
+        <p class="inv-get"><span>What it would give us</span> ${esc(v.wouldGive)}</p>
+      </div>`).join('')}
+  </div>
+  <div class="col stack" style="margin-top:18px">
+    <p><b>The one worth pressing on is Projects.</b> It is the only surface where custom-field
+      columns are confirmed, which is the exact capability the pipeline column cannot confirm.
+      It is not built because it moves candidates into a parallel list rather than improving the
+      record they already have — a workflow change Ashby's team should agree to before we make it.</p>
+  </div>
+</section>
+
+<section class="doc">
+  <div class="sec-h col"><span class="n">08</span><h2>Questions for Ashby</h2></div>
   <div class="col stack">
     <p class="lede">${OPEN_QUESTIONS.length} places the documentation did not say and we had to
       assume. The ${HIGH_RISK.length} that would change what we build:</p>
