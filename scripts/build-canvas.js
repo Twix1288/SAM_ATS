@@ -22,6 +22,8 @@ import {
 } from './placement-panes.js';
 import { OPEN_QUESTIONS, HIGH_RISK } from './questions.js';
 import { renderDossier } from '../sam-integration/render/dossier.js';
+import { renderSnapshotPdf } from '../sam-integration/render/snapshot.js';
+import { stitchSnapshotWithResume } from '../sam-integration/render/stitch.js';
 
 const SURVEY = 'data/survey_agree.com_business_development_representative.xlsx';
 const OUT = process.argv[2] ?? 'ashby-simulator/output/canvas.html';
@@ -49,6 +51,13 @@ const rows = scored
 const SCALE = 0.72;
 const SCALED_H = Math.round(VIEWPORT.height * SCALE);
 
+// The canvas reports what the document actually is, so we build it rather than describe
+// it. If the stitch ever stops binding the resume in, the canvas says so on its own.
+const bound = await stitchSnapshotWithResume({
+  snapshotBytes: await renderSnapshotPdf(s),
+  response: entry.response,
+});
+
 function screenFor(id) {
   const base = { candidate: c, tags: [] };
   switch (id) {
@@ -59,7 +68,7 @@ function screenFor(id) {
       feed: quietFeedPane('Nothing from Sam in the feed.<br>The scores are in the Summary rail — and, more importantly, in the pipeline above.'),
     });
     case 'note': return ashbyScreen({ ...base, activeTab: 'Feed', feed: notePane(s, DOSSIER) });
-    case 'document': return ashbyScreen({ ...base, activeTab: 'Files', feed: documentPane(s) });
+    case 'document': return ashbyScreen({ ...base, activeTab: 'Files', feed: documentPane(s, bound) });
     default: return '';
   }
 }
@@ -345,6 +354,7 @@ ${PANE_CSS}
       <tr><td class="fld">API calls</td><td class="cmp">1</td><td class="cmp">3 — handle, upload, attach</td></tr>
       <tr><td class="fld">Where it lands</td><td class="cmp">Activity feed, the default tab</td><td class="cmp">Files list, in the document viewer</td></tr>
       <tr><td class="fld">Effort to read it</td><td class="cmp"><b>None — it is just there</b></td><td class="cmp">One click to open</td></tr>
+      <tr><td class="fld">Evidence travels with it</td><td class="cmp">A link out to the resume</td><td class="cmp"><b>Their resume is bound in behind it</b></td></tr>
       <tr><td class="fld">Design survives</td><td class="cmp">No — structure only</td><td class="cmp"><b>Every pixel</b></td></tr>
       <tr><td class="fld">Stays current</td><td class="cmp">Re-scoring writes a new note</td><td class="cmp">Frozen; a re-score is a second file</td></tr>
     </tbody>

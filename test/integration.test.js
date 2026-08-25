@@ -18,6 +18,9 @@ import * as ledger from '../sam-integration/delivery/ledger.js';
 import { reconcileMerge, MERGE_OUTCOME } from '../sam-integration/delivery/merge.js';
 import * as db from '../ashby-simulator/store.js';
 import { rubricForJob, UnknownJobError, registeredJobs } from '../sam-integration/services/rubrics.js';
+import { renderSnapshotPdf } from '../sam-integration/render/snapshot.js';
+import { stitchSnapshotWithResume, STITCH_MODE, toWinAnsi } from '../sam-integration/render/stitch.js';
+import { resumeFileForResponse } from '../sam-integration/ingest/resume.js';
 import { ANCHORS } from '../sam-integration/services/rubric.js';
 import { renderAshbyUI } from '../ashby-simulator/ui.js';
 import { readFileSync, readdirSync } from 'node:fs';
@@ -639,5 +642,91 @@ describe('every module actually loads', () => {
       try { await import(`../${f}`); } catch (err) { broken.push(`${f}: ${err.message}`); }
     }
     assert.deepEqual(broken, [], 'these modules do not load');
+  });
+});
+
+describe('Binding the resume in behind the Snapshot', () => {
+  const pool = loadPool(SURVEY);
+  const scored = scorePool(pool);
+  const withExt = (ext) => scored.find((e) => resumeFileForResponse(e.response)?.ext === ext);
+
+  const stitchFor = async (entry) => {
+    const snapshot = buildSnapshot(entry.score, entry.response);
+    const snapshotBytes = await renderSnapshotPdf(snapshot);
+    const out = await stitchSnapshotWithResume({ snapshotBytes, response: entry.response });
+    return { snapshotBytes, out };
+  };
+
+  test('a PDF resume is merged page for page, so their layout survives', async () => {
+    const entry = withExt('pdf');
+    assert.ok(entry, 'the pool should contain at least one PDF resume');
+    const { out } = await stitchFor(entry);
+    assert.equal(out.mode, STITCH_MODE.merged);
+    assert.ok(out.resumePages >= 1, 'the resume contributed pages');
+    // Snapshot + exactly one divider + the resume. The divider is what tells the reviewer
+    // where Sam stops, so its absence would be a correctness bug, not a cosmetic one.
+    assert.equal(out.pages, out.snapshotPages + 1 + out.resumePages);
+  });
+
+  test('a Word resume is typeset and says so rather than implying fidelity', async () => {
+    const entry = withExt('docx');
+    assert.ok(entry, 'the pool should contain at least one .docx resume');
+    const { out } = await stitchFor(entry);
+    assert.equal(out.mode, STITCH_MODE.typeset);
+    assert.match(out.detail, /not preserved/i);
+  });
+
+  test('every resume in the pool binds in — none falls back', async () => {
+    // The fallback is correct behaviour, but if it fires across a real pool it means the
+    // stitcher is quietly shipping half of what it promises. This is the check that would
+    // have caught bullet glyphs crashing the WinAnsi encoder.
+    const modes = {};
+    for (const entry of scored) {
+      const { out } = await stitchFor(entry);
+      modes[out.mode] = (modes[out.mode] ?? 0) + 1;
+    }
+    assert.equal(modes[STITCH_MODE.snapshotOnly] ?? 0, 0,
+      `some resumes did not bind in: ${JSON.stringify(modes)}`);
+    assert.equal((modes[STITCH_MODE.merged] ?? 0) + (modes[STITCH_MODE.typeset] ?? 0), scored.length);
+  });
+
+  test('no resume on file degrades to the Snapshot alone, byte for byte', async () => {
+    const entry = scored[0];
+    const snapshot = buildSnapshot(entry.score, entry.response);
+    const snapshotBytes = await renderSnapshotPdf(snapshot);
+    const out = await stitchSnapshotWithResume({
+      snapshotBytes,
+      response: { ...entry.response, resume: null },
+    });
+    assert.equal(out.mode, STITCH_MODE.snapshotOnly);
+    assert.equal(out.resumePages, 0);
+    // Identical bytes, not merely a similar document: the fallback must not re-save and
+    // silently drop a page of the Snapshot on its way past.
+    assert.equal(Buffer.compare(out.bytes, snapshotBytes), 0);
+  });
+
+  test('an unreadable resume costs a convenience, never the delivery', async () => {
+    const entry = withExt('pdf');
+    const snapshot = buildSnapshot(entry.score, entry.response);
+    const snapshotBytes = await renderSnapshotPdf(snapshot);
+    const out = await stitchSnapshotWithResume({
+      snapshotBytes, response: entry.response, cacheDir: '.cache/does-not-exist',
+    });
+    assert.equal(out.mode, STITCH_MODE.snapshotOnly);
+    assert.match(out.detail, /no resume on file/i);
+  });
+
+  test('characters the PDF encoder cannot represent are transliterated, not thrown', () => {
+    assert.equal(toWinAnsi('● Closed “enterprise” deals – $2.4M'),
+      '- Closed "enterprise" deals - $2.4M');
+    assert.equal(toWinAnsi('emoji \u{1F600} vanish'), 'emoji  vanish');
+    assert.equal(toWinAnsi('café résumé'), 'café résumé', 'Latin-1 survives intact');
+  });
+
+  test('the resume is bound in before the attachment is uploaded', () => {
+    const ids = STAGES.map((s) => s.id);
+    assert.ok(ids.indexOf('stitch') < ids.indexOf('attach'),
+      'stitching after the upload would attach the Snapshot without the evidence');
+    assert.ok(ids.indexOf('render') < ids.indexOf('stitch'));
   });
 });

@@ -107,6 +107,12 @@ no partner approval, no customer-side configuration.
 A is read without a click; B keeps every pixel behind one. The note names the document, so
 they are one path rather than two competing ones.
 
+B ships as a single file: the Snapshot, a divider page, then the candidate's own resume.
+Ashby's Files list has no ordering and no way to say *read this one first*, so two separate
+documents would leave the reviewer to relate them for themselves. 35 of the 41 resumes are
+PDFs and merge page-for-page; the 6 Word documents are typeset from their text, and the
+divider page says which of the two you are looking at rather than implying fidelity.
+
 **Plus a data layer**, which is not a display:
 
 | | Write | Endpoint | The job it does |

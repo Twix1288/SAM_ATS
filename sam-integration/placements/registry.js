@@ -79,6 +79,10 @@ const PLACEMENTS = [
     tab: 'Files',
     appearsOn: 'The candidate’s Files list, opened in Ashby’s document viewer',
     job: 'Go deep on the evidence',
+    // The reviewer opens one file and gets the judgement with the evidence underneath it.
+    // Ashby's Files list has no ordering and no way to say "read this one first", so two
+    // separate documents would leave the reviewer to relate them for themselves.
+    binds: 'the candidate’s own resume, behind a divider page',
     survives: [
       'identity', 'matchScore', 'band', 'poolRank', 'coverage', 'nextStep',
       'experience', 'responsibility', 'roleLevel', 'careerHistory', 'capability',
@@ -87,8 +91,11 @@ const PLACEMENTS = [
     ],
     caveat:
       'Everything designed survives, inside Ashby, with the quoted evidence behind every '
-      + 'anchor. It is a frozen document: re-scoring against a changed rubric means a '
-      + 'second file rather than an update, and Ashby keeps both.',
+      + 'anchor, and the candidate’s own resume bound in behind a divider page so the '
+      + 'judgement travels with its source. It is a frozen document: re-scoring against a '
+      + 'changed rubric means a second file rather than an update, and Ashby keeps both. '
+      + 'A resume sent as a Word document is typeset rather than reproduced — the divider '
+      + 'page says so rather than implying a fidelity it does not have.',
   },
 ];
 

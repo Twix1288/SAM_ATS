@@ -38,6 +38,19 @@ const headline = (s) =>
   `Role Fit ${pct(s.roleFit)} at ${pct(s.coverage)} evidence coverage · Capability ${s.capability}/10 · rank ${s.pool.roleFitRank} of ${s.pool.size}`;
 
 /** Plain-text note. The floor: what survives if HTML is rejected entirely. */
+/**
+ * What the note is allowed to claim about the attachment.
+ *
+ * The pipeline only passes page counts when the resume actually bound in, so a note can
+ * never advertise evidence the document does not carry. If the stitch fell back, the
+ * sentence falls back with it.
+ */
+function attachmentSuffix(attachment) {
+  if (!attachment?.resumePages) return ', attached to this candidate';
+  const how = attachment.mode === 'typeset' ? ' as text' : '';
+  return `, ${attachment.pages} pages with their own resume bound in behind it${how}`;
+}
+
 export function composeNote(snapshot, dossierUrl, attachment = null) {
   const s = snapshot;
   const lines = [
@@ -61,7 +74,7 @@ export function composeNote(snapshot, dossierUrl, attachment = null) {
   if (s.caveats?.length) lines.push('', 'Caveats:', ...s.caveats.map((c) => `  - ${c}`));
 
   lines.push('');
-  if (attachment) lines.push(`Full Snapshot attached to this candidate: ${attachment.filename}`);
+  if (attachment) lines.push(`Full Snapshot attached to this candidate: ${attachment.filename}${attachmentSuffix(attachment)}`);
   lines.push(`Evidence, interview audio and the original resume: ${dossierUrl}`);
   return lines.join('\n');
 }
@@ -89,7 +102,7 @@ export function composeNoteHtml(snapshot, dossierUrl, attachment = null) {
     + `<td>${esc(g.label)}</td><td>${esc(g.status)}</td></tr>`).join('');
 
   const routes = [
-    attachment ? `<li><b>${esc(attachment.filename)}</b> — the full Snapshot, attached to this candidate</li>` : '',
+    attachment ? `<li><b>${esc(attachment.filename)}</b> — the full Snapshot${esc(attachmentSuffix(attachment))}</li>` : '',
     `<li><a href="${esc(dossierUrl)}">Open the evidence</a> — every quoted span, the interview recordings, and the original resume</li>`,
   ].filter(Boolean).join('');
 

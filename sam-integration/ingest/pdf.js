@@ -335,8 +335,3 @@ export function extractPdfText(buffer) {
   return isReadable(text) ? text : '';
 }
 
-/** Counts pages by their /Type /Page objects, ignoring the /Pages tree node. */
-export function pdfPageCount(buffer) {
-  const s = Buffer.isBuffer(buffer) ? buffer.toString('latin1') : String(buffer);
-  return (s.match(/\/Type\s*\/Page(?![s])/g) ?? []).length;
-}

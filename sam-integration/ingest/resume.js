@@ -286,15 +286,31 @@ export function loadResumeText(filePath) {
  * Returns null when the file is not cached or nothing parses, so the renderer can show an
  * honest empty state instead of inventing a work history.
  */
-export function resumeForResponse(response, cacheDir = '.cache/resumes') {
+/**
+ * Locates the cached resume file itself, rather than its text.
+ *
+ * The stitcher needs the bytes and the format, not the parse: a PDF resume is merged
+ * page-for-page so the candidate's own layout survives, while a Word document can only
+ * be typeset from extracted text. Both callers agree on where the file lives because
+ * they share this one lookup.
+ *
+ * @returns {{path: string, ext: string} | null}
+ */
+export function resumeFileForResponse(response, cacheDir = '.cache/resumes') {
   if (!response?.resume?.name) return null;
   const prefix = String(response.rowNumber).padStart(2, '0');
   let entries;
   try { entries = readdirSync(cacheDir); } catch { return null; }
   const file = entries.find((f) => f.startsWith(`${prefix}_`) && /\.(pdf|docx)$/i.test(f));
   if (!file) return null;
+  return { path: `${cacheDir}/${file}`, ext: file.slice(file.lastIndexOf('.') + 1).toLowerCase() };
+}
+
+export function resumeForResponse(response, cacheDir = '.cache/resumes') {
+  const found = resumeFileForResponse(response, cacheDir);
+  if (!found) return null;
   try {
-    const parsed = parseResume(loadResumeText(`${cacheDir}/${file}`));
+    const parsed = parseResume(loadResumeText(found.path));
     return parsed.roles.length || parsed.skills.length ? parsed : null;
   } catch {
     return null;

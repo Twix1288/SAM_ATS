@@ -100,12 +100,18 @@ Then walk it:
 2. **Click his row.** The record opens on the Feed.
 3. **Feed** — Sam's note, rendered after Ashby's sanitiser stripped the styling.
 4. **Files** — `sam_snapshot_aditya_alapati.pdf` *added by Sam*, above `Aditya Alapati_CV.pdf`
-   *from candidate*. **Click the Snapshot** — it opens inline in the viewer.
+   *from candidate*. **Click the Snapshot** — it opens inline in the viewer. **Scroll past
+   the last Snapshot page**: a divider page, then his own resume, bound in behind it.
 5. **Application tab** — the four custom field values on the application itself.
 
-> "Two documents. Ours is added, theirs is untouched. That is `candidate.uploadFile` rather
-> than `candidate.uploadResume`, and it is the one call in this integration I would not make
-> differently."
+> "Their document is still theirs — untouched, right there in the list. Ours is added
+> beside it. That is `candidate.uploadFile` rather than `candidate.uploadResume`, and it is
+> the one call in this integration I would not make differently."
+
+> "And we bind a copy of their resume into ours, because the Files list has no ordering and
+> no way to say *read this one first*. One file, judgement first, evidence behind it. If
+> they sent a Word document we typeset it, and the divider page says so — we do not pretend
+> to a fidelity we do not have."
 
 ---
 

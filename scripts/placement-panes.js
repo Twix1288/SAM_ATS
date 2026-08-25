@@ -16,6 +16,14 @@ export const PANE_CSS = `
 .viewer-bar{display:flex;align-items:center;gap:10px;color:#D3D8DB;font-size:11.5px;margin-bottom:11px;flex:none}
 .viewer-bar .nm{font-weight:600;color:#fff}
 .viewer-bar .tools{margin-left:auto;display:flex;gap:9px;color:#A9B0B4}
+/* What the one attachment is actually made of. Stated, not implied — a reviewer who
+   scrolls past the Snapshot should already know what they are about to find. */
+.bound{display:flex;align-items:center;gap:6px;margin-top:9px;flex-wrap:wrap;font-size:10.5px}
+.bound .seg{padding:3px 8px;border-radius:3px;font-weight:600;letter-spacing:.01em}
+.bound .seg.sam{background:${TEAL.wash};color:${TEAL.deep}}
+.bound .seg.div{background:#EFF2F3;color:#5A6367}
+.bound .seg.res{background:#F4F6F7;color:#5A6367;border:1px solid #E2E7E9}
+.bound .how{color:#7A8388;font-style:italic}
 .page{background:#fff;width:600px;margin:0 auto;font-family:${SAM.fontStack};
   box-shadow:0 3px 14px rgba(0,0,0,.32);overflow:hidden}
 .pg-head{background:${SAM.black};color:#fff;padding:15px 19px 13px;border-bottom:3px solid ${SAM.teal};display:flex;gap:12px}
@@ -131,16 +139,35 @@ const feedItem = (body, who = 'Sam', when = 'just now') => `
 const composer = '<div class="ab-composer">Write a note…</div>';
 
 /** VERSION — the Snapshot as a file on the candidate. */
-export function documentPane(s) {
+/** "1–3" for a range, plain "4" for one page. */
+const span = (from, to) => (from === to ? `${from}` : `${from}–${to}`);
+
+/**
+ * @param {object}  s
+ * @param {object} [bound]  the real stitch result, so the viewer states the true page
+ *                          count and the true composition rather than a rounded guess
+ */
+export function documentPane(s, bound = null) {
   const file = `sam_snapshot_${s.candidate.name.toLowerCase().replace(/\W+/g, '_')}.pdf`;
+  const pages = bound?.pages ?? 2;
+  const how = bound?.mode === 'typeset'
+    ? 'typeset from their Word document — original layout not preserved'
+    : 'their own PDF, reproduced page for page';
   return `
   <div class="ab-file sam"><span class="ic">PDF</span><span>${esc(file)}</span><span class="meta">added by Sam · just now</span></div>
   <div class="ab-file"><span class="ic">PDF</span><span>${esc(s.candidate.resume?.name ?? 'resume.pdf')}</span><span class="meta">uploaded by candidate</span></div>
   <div class="viewer" style="height:560px;margin-top:11px">
-    <div class="viewer-bar"><span class="nm">${esc(file)}</span><span>2 pages</span>
+    <div class="viewer-bar"><span class="nm">${esc(file)}</span><span>${pages} page${pages === 1 ? '' : 's'}</span>
       <span class="tools"><span>−</span><span>100%</span><span>+</span><span>⤓</span></span></div>
     ${snapshotPage(s)}
-  </div>`;
+  </div>
+  ${bound?.resumePages ? `
+  <div class="bound">
+    <span class="seg sam">${span(1, bound.snapshotPages)} · Snapshot</span>
+    <span class="seg div">${bound.snapshotPages + 1} · divider</span>
+    <span class="seg res">${span(bound.snapshotPages + 2, bound.pages)} · their resume</span>
+    <span class="how">${esc(how)}</span>
+  </div>` : ''}`;
 }
 
 /** VERSION — a rich note, shown as it looks after Ashby's sanitiser. */

@@ -159,6 +159,28 @@ FID=$(curl -s -X POST http://localhost:3001/candidate.info -H "$AUTH" -H 'conten
 FCODE=$(curl -s -o /tmp/pf_pdf -w "%{http_code}" "http://localhost:3001/files/$FID")
 [ "$FCODE" = "200" ] && head -c4 /tmp/pf_pdf | grep "%PDF" > /dev/null && ok "inline pdf, $(wc -c < /tmp/pf_pdf | tr -d ' ')b" || bad "HTTP $FCODE"
 
+# The attachment is one document carrying two things. Checking only that a PDF came back
+# would pass even if the resume silently stopped binding in, which is the failure this
+# whole stage exists to prevent — so we read the file and count its pages.
+step "their own resume is bound in behind it"
+STITCH=$(node -e '
+  const fs = require("fs");
+  import("pdf-lib").then(async ({PDFDocument}) => {
+    const bytes = fs.readFileSync("/tmp/pf_pdf");
+    const doc = await PDFDocument.load(bytes, {ignoreEncryption: true});
+    const { extractPdfText } = await import("./sam-integration/ingest/pdf.js");
+    const text = extractPdfText(bytes);
+    const divider = /SOURCE DOCUMENT/.test(text);
+    const disclaimer = /Everything above this page is Sam/.test(text);
+    console.log((divider && disclaimer && doc.getPageCount() > 2 ? "OK " : "FAIL ")
+      + doc.getPageCount() + " pages, divider=" + divider);
+  }).catch((e) => console.log("FAIL " + e.message));
+' 2>&1 | tail -1)
+case "$STITCH" in
+  OK*)   ok "${STITCH#OK }" ;;
+  *)     bad "${STITCH#FAIL }" ;;
+esac
+
 step "snapshot pdf written"
 [ -s ashby-simulator/output/sam_snapshot_aditya_alapati.pdf ] \
   && ok "$(wc -c < ashby-simulator/output/sam_snapshot_aditya_alapati.pdf | tr -d ' ') bytes" || bad "no pdf"
