@@ -212,12 +212,15 @@ npm run trigger -- --row 11        # Craig DeMary · 76% · complete
 ```
 Then open `/canvas/craig_demary`. Different candidate, different Snapshot, no code change.
 
-**B · Ashby retries a delivery.**
+**B · Ashby retries a delivery.** Run it twice — the first call establishes the delivery,
+the second is the one that gets refused.
 
 ```bash
 npm run trigger -- --row 6 --replay     # complete
-npm run trigger -- --row 6 --replay     # duplicate — no work done
+npm run trigger -- --row 6 --replay     # "duplicate":true — no work done
 ```
+
+The `webhookActionId` persists across Ashby's own retries, so it is the idempotency key.
 
 **C · Someone forges a webhook.**
 
@@ -304,4 +307,4 @@ npm run package     # sam-ashby-integration-YYYYMMDD.zip
 ```
 
 Plus the two published pages — the canvas (build record screens) and the build record
-itself — and the eight questions in `scripts/questions.js`, three of them high-risk.
+itself — and the nine questions in `scripts/questions.js`, four of them high-risk.

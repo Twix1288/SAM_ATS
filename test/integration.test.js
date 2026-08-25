@@ -18,6 +18,7 @@ import * as ledger from '../sam-integration/delivery/ledger.js';
 import { reconcileMerge, MERGE_OUTCOME } from '../sam-integration/delivery/merge.js';
 import * as db from '../ashby-simulator/store.js';
 import { rubricForJob, UnknownJobError, registeredJobs } from '../sam-integration/services/rubrics.js';
+import { OPEN_QUESTIONS, HIGH_RISK } from '../scripts/questions.js';
 import { renderSnapshotPdf } from '../sam-integration/render/snapshot.js';
 import { stitchSnapshot, stitchSnapshotWithResume, STITCH_MODE, toWinAnsi, MAX_BOUND_PAGES } from '../sam-integration/render/stitch.js';
 import { resumeFileForResponse, candidateFilesForResponse } from '../sam-integration/ingest/resume.js';
@@ -804,5 +805,42 @@ describe('Every version the documentation allows is accounted for', () => {
     }
     assert.ok(!INVESTIGATED.some((v) => v.endpoint === REFUSED.endpoint),
       'the refused surface has its own section and its own reasoning');
+  });
+});
+
+describe('The questions are ones only Ashby can answer', () => {
+  // The filter that keeps this list worth handing over: if a careful read of the public
+  // docs settles it, or a trial account settles it in five minutes, it is our work rather
+  // than theirs. `whyAshby` is where each question has to earn its place.
+  test('every question states why it cannot be answered anywhere else', () => {
+    for (const q of OPEN_QUESTIONS) {
+      assert.ok(q.whyAshby && q.whyAshby.length > 40,
+        `"${q.topic}" needs to say why Ashby is the only party who can answer it`);
+    }
+  });
+
+  test('every question carries the assumption we shipped and what it costs to be wrong', () => {
+    for (const q of OPEN_QUESTIONS) {
+      assert.ok(q.question.trim().endsWith('?'), `"${q.topic}" is not phrased as a question`);
+      assert.ok(q.assumption.length > 60, `"${q.topic}" must name what we assumed instead`);
+      assert.ok(q.consequence.length > 60, `"${q.topic}" must say what changes if we are wrong`);
+      assert.ok(['high', 'medium', 'low'].includes(q.risk), `"${q.topic}" needs a risk level`);
+    }
+  });
+
+  test('the high-risk ones are the ones that change what we build', () => {
+    assert.ok(HIGH_RISK.length >= 3 && HIGH_RISK.length <= 5,
+      'too few and the lead is unclear; too many and nothing leads');
+    assert.equal(HIGH_RISK[0].topic, 'Custom fields as sortable columns',
+      'the column question is the one the triage story depends on — it goes first');
+  });
+
+  test('nothing on the list is settled by our own contract', () => {
+    // uploadResume vs uploadFile was an open question until the docs confirmed uploadResume
+    // forcefully replaces the primary resume. Answered questions come off the list.
+    for (const q of OPEN_QUESTIONS) {
+      assert.doesNotMatch(q.question, /uploadResume|which endpoint should we use/i,
+        `"${q.topic}" was settled by the documentation and should have been removed`);
+    }
   });
 });
