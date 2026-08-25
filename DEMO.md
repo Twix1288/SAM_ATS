@@ -16,7 +16,7 @@ checks every browser tab, and exercises all four walkthrough moves — then shut
 down and tells you whether you are ready:
 
 ```
-  ✓ 33 checks passed. Ready for Friday.
+  ✓ 37 checks passed. Ready for Friday.
 ```
 
 If anything is red, it names what broke and points at the log. Do not walk into the room
@@ -79,14 +79,19 @@ anchor A6 (Competitive displacement)       NOT COLLECTED — No survey question 
 npm run trigger -- --row 6
 ```
 
-Terminal 2 prints the eight stages:
+Terminal 2 prints nine stages. The last four are the ones to read out:
 
 ```
-05 ✓ Write scores into Ashby's fields   → DELIVERABLE 1 · dashboard scores
-06 ✓ Append the Snapshot to their files → DELIVERABLE 2 · attachment
-07 ✓ Write the note that points at it   → DELIVERABLE 3 · rich note
-08 ✓ Confirm all three landed           3 of 3 deliverables on the record — complete
+05 ✓ Bind in their resume               4 pages · 2 Snapshot + 1 resume · layout intact
+06 ✓ Write scores into Ashby's fields   → DELIVERABLE 1 · dashboard scores
+07 ✓ Append the Snapshot to their files → DELIVERABLE 2 · attachment
+08 ✓ Write the note that points at it   → DELIVERABLE 3 · rich note
+09 ✓ Confirm all three landed           3 of 3 deliverables on the record — complete
 ```
+
+> "Scores first, so the candidate is findable the moment anything lands. The note last,
+> because it names the attachment — write it first and you publish a reference to a
+> document that does not exist yet. The order is load-bearing.
 
 **Now switch to the browser without touching anything.** The UI polls Ashby every three
 seconds, so a toast appears — *"Sam scored 1 new application"* — and Aditya's row fills in.
@@ -262,9 +267,11 @@ declined to score  No rubric is registered for job "Platform Engineer" (e72961ae
 `http://localhost:3000/pool.csv` — all 41 scored and ranked.
 
 **"Why only three surfaces?"**
-Nine were investigated. These three do three different jobs — triage, read, go deep — and
-all three land today. The two worth revisiting are Ashby's assessment-partner card and the
-interview scorecard; both are waiting on Ashby.
+Ten surfaces were looked at: three built, one refused, six investigated and not built.
+The three do three different jobs — triage, read, go deep — and all three land today.
+Section 07 of the canvas lists the other six with the reason each one is out. The one worth
+pressing on is `candidate.addProject`: Projects are the only surface where custom-field
+columns are confirmed, which is exactly what the pipeline column cannot confirm.
 
 **"How does it know which role to score against?"**
 `data.application.job.id` on the webhook. Sam looks it up in a registry keyed by Ashby job
@@ -297,4 +304,4 @@ npm run package     # sam-ashby-integration-YYYYMMDD.zip
 ```
 
 Plus the two published pages — the canvas (build record screens) and the build record
-itself — and the eleven questions in `scripts/questions.js`.
+itself — and the eight questions in `scripts/questions.js`, three of them high-risk.
