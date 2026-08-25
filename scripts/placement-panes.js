@@ -23,6 +23,7 @@ export const PANE_CSS = `
 .bound .seg.sam{background:${TEAL.wash};color:${TEAL.deep}}
 .bound .seg.div{background:#EFF2F3;color:#5A6367}
 .bound .seg.res{background:#F4F6F7;color:#5A6367;border:1px solid #E2E7E9}
+.bound .seg.extra{background:transparent;color:#7A8388;border:1px dashed #D6DBDD;font-weight:500}
 .bound .how{color:#7A8388;font-style:italic}
 .page{background:#fff;width:600px;margin:0 auto;font-family:${SAM.fontStack};
   box-shadow:0 3px 14px rgba(0,0,0,.32);overflow:hidden}
@@ -139,6 +140,19 @@ const feedItem = (body, who = 'Sam', when = 'just now') => `
 const composer = '<div class="ab-composer">Write a note…</div>';
 
 /** VERSION — the Snapshot as a file on the candidate. */
+/** One divider + one document per bound source, numbered as the reader will meet them. */
+function segments(bound) {
+  let at = bound.snapshotPages;
+  return bound.bound.map((b) => {
+    const divider = at + 1;
+    const from = at + 2;
+    at = at + 1 + b.pages;
+    return `<span class="seg div">${divider} · divider</span>`
+      + `<span class="seg ${b.read ? 'res' : 'extra'}">${span(from, at)} · `
+      + `${esc(b.read ? 'their resume' : b.label)}${b.read ? '' : ' · unscored'}</span>`;
+  }).join('');
+}
+
 /** "1–3" for a range, plain "4" for one page. */
 const span = (from, to) => (from === to ? `${from}` : `${from}–${to}`);
 
@@ -161,11 +175,10 @@ export function documentPane(s, bound = null) {
       <span class="tools"><span>−</span><span>100%</span><span>+</span><span>⤓</span></span></div>
     ${snapshotPage(s)}
   </div>
-  ${bound?.resumePages ? `
+  ${bound?.bound?.length ? `
   <div class="bound">
     <span class="seg sam">${span(1, bound.snapshotPages)} · Snapshot</span>
-    <span class="seg div">${bound.snapshotPages + 1} · divider</span>
-    <span class="seg res">${span(bound.snapshotPages + 2, bound.pages)} · their resume</span>
+    ${segments(bound)}
     <span class="how">${esc(how)}</span>
   </div>` : ''}`;
 }

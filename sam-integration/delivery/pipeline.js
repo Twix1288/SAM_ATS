@@ -160,7 +160,13 @@ export async function deliverSnapshot(ctx) {
       dossierUrl,
       deliveryId,
       attachment: attachment
-        ? { filename, pages: bound.pages, resumePages: bound.resumePages, mode: bound.mode }
+        ? {
+          filename,
+          pages: bound.pages,
+          resumePages: bound.resumePages,
+          mode: bound.mode,
+          extras: bound.bound.filter((b) => !b.read).map((b) => b.label).join(', '),
+        }
         : null,
     });
     record('annotate', true, `${note.format} · ${note.body.length} chars${attachment ? ' · references the attachment' : ' · no attachment to reference'}`);

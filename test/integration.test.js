@@ -19,8 +19,8 @@ import { reconcileMerge, MERGE_OUTCOME } from '../sam-integration/delivery/merge
 import * as db from '../ashby-simulator/store.js';
 import { rubricForJob, UnknownJobError, registeredJobs } from '../sam-integration/services/rubrics.js';
 import { renderSnapshotPdf } from '../sam-integration/render/snapshot.js';
-import { stitchSnapshotWithResume, STITCH_MODE, toWinAnsi } from '../sam-integration/render/stitch.js';
-import { resumeFileForResponse } from '../sam-integration/ingest/resume.js';
+import { stitchSnapshot, stitchSnapshotWithResume, STITCH_MODE, toWinAnsi, MAX_BOUND_PAGES } from '../sam-integration/render/stitch.js';
+import { resumeFileForResponse, candidateFilesForResponse } from '../sam-integration/ingest/resume.js';
 import { ANCHORS } from '../sam-integration/services/rubric.js';
 import { renderAshbyUI } from '../ashby-simulator/ui.js';
 import { readFileSync, readdirSync } from 'node:fs';
@@ -713,7 +713,7 @@ describe('Binding the resume in behind the Snapshot', () => {
       snapshotBytes, response: entry.response, cacheDir: '.cache/does-not-exist',
     });
     assert.equal(out.mode, STITCH_MODE.snapshotOnly);
-    assert.match(out.detail, /no resume on file/i);
+    assert.match(out.detail, /no documents on file/i);
   });
 
   test('characters the PDF encoder cannot represent are transliterated, not thrown', () => {
@@ -721,6 +721,59 @@ describe('Binding the resume in behind the Snapshot', () => {
       '- Closed "enterprise" deals - $2.4M');
     assert.equal(toWinAnsi('emoji \u{1F600} vanish'), 'emoji  vanish');
     assert.equal(toWinAnsi('café résumé'), 'café résumé', 'Latin-1 survives intact');
+  });
+
+  test('a candidate who also sent a cover letter still has their resume read', () => {
+    // Both files sit under the same row prefix in the cache. Taking the first one
+    // alphabetically read the cover letter as his resume — for the Career History section
+    // and for the document bound in behind the Snapshot.
+    const hare = scored.find((e) => /Hare/i.test(e.response.name));
+    assert.ok(hare, 'the pool should contain the one candidate with a second document');
+    assert.ok(hare.response.attachments.length >= 1);
+    assert.match(resumeFileForResponse(hare.response).path, /resume/i);
+    assert.doesNotMatch(resumeFileForResponse(hare.response).path, /cover_letter/i);
+  });
+
+  test('a document Sam never read is marked as submitted, not as source', async () => {
+    const hare = scored.find((e) => /Hare/i.test(e.response.name));
+    const files = candidateFilesForResponse(hare.response);
+    assert.equal(files.filter((f) => f.read).length, 1, 'exactly one document was read');
+    assert.ok(files.some((f) => !f.read), 'the cover letter is present but unread');
+
+    const { out } = await stitchFor(hare);
+    const extra = out.bound.find((b) => !b.read);
+    assert.ok(extra, 'the cover letter bound in');
+    assert.match(out.detail, /unscored/,
+      'the summary has to say Sam did not score it, or the document implies evidence it never used');
+  });
+
+  test('a format we cannot bind is reported, never dropped in silence', async () => {
+    const entry = scored[0];
+    const snapshotBytes = await renderSnapshotPdf(buildSnapshot(entry.score, entry.response));
+    const out = await stitchSnapshot({
+      snapshotBytes,
+      sources: [
+        { ...resumeFileForResponse(entry.response), label: 'resume.pdf', read: true },
+        { path: 'package.json', ext: 'json', label: 'portfolio.json', read: false },
+      ],
+    });
+    assert.equal(out.skipped.length, 1);
+    assert.match(out.skipped[0].reason, /cannot be bound in/);
+    assert.match(out.detail, /left out/);
+  });
+
+  test('the bound-in pages are capped, and the cap says what it dropped', async () => {
+    const entry = scored[0];
+    const snapshotBytes = await renderSnapshotPdf(buildSnapshot(entry.score, entry.response));
+    const one = { ...resumeFileForResponse(entry.response), read: false };
+    const out = await stitchSnapshot({
+      snapshotBytes,
+      sources: Array.from({ length: 60 }, (_, i) => ({ ...one, label: `doc_${i}.pdf` })),
+    });
+    assert.ok(out.pages - out.snapshotPages <= MAX_BOUND_PAGES * 2,
+      'an unbounded candidate upload cannot produce an unbounded attachment');
+    assert.ok(out.skipped.length > 0);
+    assert.match(out.skipped.at(-1).reason, new RegExp(`${MAX_BOUND_PAGES}-page limit`));
   });
 
   test('the resume is bound in before the attachment is uploaded', () => {

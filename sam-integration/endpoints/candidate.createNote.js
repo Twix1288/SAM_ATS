@@ -48,7 +48,10 @@ const headline = (s) =>
 function attachmentSuffix(attachment) {
   if (!attachment?.resumePages) return ', attached to this candidate';
   const how = attachment.mode === 'typeset' ? ' as text' : '';
-  return `, ${attachment.pages} pages with their own resume bound in behind it${how}`;
+  const extras = attachment.extras
+    ? `, and ${attachment.extras} they also submitted but Sam did not score`
+    : '';
+  return `, ${attachment.pages} pages with their own resume bound in behind it${how}${extras}`;
 }
 
 export function composeNote(snapshot, dossierUrl, attachment = null) {

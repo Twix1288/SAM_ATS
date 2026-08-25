@@ -297,13 +297,63 @@ export function loadResumeText(filePath) {
  * @returns {{path: string, ext: string} | null}
  */
 export function resumeFileForResponse(response, cacheDir = '.cache/resumes') {
-  if (!response?.resume?.name) return null;
-  const prefix = String(response.rowNumber).padStart(2, '0');
+  const declared = response?.resume?.name;
+  if (!declared) return null;
+  const prefix = `${String(response.rowNumber).padStart(2, '0')}_`;
   let entries;
   try { entries = readdirSync(cacheDir); } catch { return null; }
-  const file = entries.find((f) => f.startsWith(`${prefix}_`) && /\.(pdf|docx)$/i.test(f));
-  if (!file) return null;
+
+  const mine = entries.filter((f) => f.startsWith(prefix) && /\.(pdf|docx)$/i.test(f));
+  if (!mine.length) return null;
+
+  // A candidate who also attached a cover letter has two files under the same row prefix,
+  // and taking the first one alphabetically reads the cover letter as their resume — which
+  // is exactly what happened to the one candidate in this pool who attached one. The survey
+  // names the resume explicitly, so match on that: caching sanitises the filename, hence the
+  // normalisation rather than an equality check.
+  const attachments = new Set((response.attachments ?? []).map((a) => normaliseName(a.name)));
+  const notAnAttachment = mine.filter((f) => !attachments.has(normaliseName(f.slice(prefix.length))));
+  const file = notAnAttachment.find((f) => normaliseName(f.slice(prefix.length)) === normaliseName(declared))
+    ?? notAnAttachment[0]
+    ?? mine[0];
+
   return { path: `${cacheDir}/${file}`, ext: file.slice(file.lastIndexOf('.') + 1).toLowerCase() };
+}
+
+/** Cached filenames are sanitised on the way to disk; compare on the sanitised form. */
+const normaliseName = (name) => String(name).toLowerCase().replace(/[^a-z0-9.]+/g, '_');
+
+/**
+ * Every candidate-supplied file for a response, resume first.
+ *
+ * `read` says whether Sam actually scored from it. It never guesses: the resume is what
+ * the engine parses, and everything else was submitted but never opened. Anything that
+ * binds a document into the Snapshot has to carry that distinction, or the document
+ * implies evidence the score was never drawn from.
+ *
+ * @returns {{path: string, ext: string, label: string, read: boolean}[]}
+ */
+export function candidateFilesForResponse(response, cacheDir = '.cache/resumes') {
+  const files = [];
+  const resume = resumeFileForResponse(response, cacheDir);
+  if (resume) files.push({ ...resume, label: response.resume.name, read: true });
+
+  const prefix = `${String(response.rowNumber).padStart(2, '0')}_`;
+  let entries;
+  try { entries = readdirSync(cacheDir); } catch { return files; }
+
+  for (const attachment of response?.attachments ?? []) {
+    const wanted = normaliseName(attachment.name);
+    const found = entries.find((f) => f.startsWith(prefix) && normaliseName(f.slice(prefix.length)) === wanted);
+    if (!found || `${cacheDir}/${found}` === resume?.path) continue;
+    files.push({
+      path: `${cacheDir}/${found}`,
+      ext: found.slice(found.lastIndexOf('.') + 1).toLowerCase(),
+      label: attachment.name,
+      read: false,
+    });
+  }
+  return files;
 }
 
 export function resumeForResponse(response, cacheDir = '.cache/resumes') {

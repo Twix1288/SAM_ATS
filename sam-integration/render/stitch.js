@@ -1,28 +1,34 @@
 /**
- * One attachment instead of two.
+ * One attachment instead of several.
  *
  * Sam's Snapshot is a judgement, and a judgement is worth less when the evidence it was
  * drawn from sits in a different file. Ashby's Files list gives no ordering guarantee and
  * no way to say "read this one first", so two documents on a record is two documents a
  * reviewer has to relate to each other themselves.
  *
- * So the Snapshot ships with the candidate's own resume bound in behind it, separated by
- * a divider page that says where Sam stops and the source begins. The reviewer opens one
- * file and reads the grade with the evidence directly underneath it.
+ * So the Snapshot ships with the candidate's own documents bound in behind it, each behind
+ * a divider page that says where Sam stops and the source begins.
+ *
+ * The divider distinguishes what Sam READ from what the candidate merely SUBMITTED. Sam
+ * scores from the resume and the interview answers; a cover letter it never opened cannot
+ * sit behind a page captioned "source document" without implying the score was drawn from
+ * it. One candidate in this pool attached one, which is how the distinction earned its
+ * place rather than being invented for symmetry.
  *
  * Three outcomes, and the divider page states which one honestly:
  *
- *   merged        the resume was a PDF — copied page for page, their layout intact
- *   typeset       it was a Word document — pdf-lib cannot render .docx, so we set the
- *                 extracted text ourselves and say so rather than implying fidelity
- *   snapshot-only no resume on file, or it would not open — the Snapshot ships alone
+ *   merged        a PDF — copied page for page, their layout intact
+ *   typeset       a Word document — pdf-lib cannot render .docx, so we set the extracted
+ *                 text ourselves and say so rather than implying fidelity
+ *   skipped       a format we cannot bind, or a document that would not open. Listed in
+ *                 the result, never dropped in silence
  *
- * Never throws. A resume that fails to load costs the reviewer a convenience; a stitcher
+ * Never throws. A document that fails to load costs the reviewer a convenience; a stitcher
  * that throws costs the candidate their entire delivery.
  */
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import { readFileSync } from 'node:fs';
-import { resumeFileForResponse } from '../ingest/resume.js';
+import { candidateFilesForResponse } from '../ingest/resume.js';
 import { extractDocxText } from '../ingest/docx.js';
 import { SAM, TEAL, INK as INK_RAMP, toRgb } from '../../shared/brand.js';
 
@@ -43,16 +49,35 @@ export const STITCH_MODE = {
   snapshotOnly: 'snapshot-only',
 };
 
-/** What the divider page tells the reviewer, per mode. */
+/** What the divider page tells the reviewer, per mode and per whether Sam read it. */
 const DIVIDER_NOTE = {
-  [STITCH_MODE.merged]:
-    'The pages that follow are the candidate’s own resume, reproduced exactly as they '
-    + 'submitted it. Sam did not alter, reformat or re-order them.',
-  [STITCH_MODE.typeset]:
-    'The candidate submitted a Word document. The pages that follow are its text, set by '
-    + 'Sam — the original formatting is not preserved. Treat the wording as theirs and the '
-    + 'layout as ours.',
+  read: {
+    [STITCH_MODE.merged]:
+      'The pages that follow are the candidate’s own resume, reproduced exactly as they '
+      + 'submitted it. Sam did not alter, reformat or re-order them. This is the document '
+      + 'the score above was drawn from, alongside their interview answers.',
+    [STITCH_MODE.typeset]:
+      'The candidate submitted their resume as a Word document. The pages that follow are '
+      + 'its text, set by Sam — the original formatting is not preserved. Treat the wording '
+      + 'as theirs and the layout as ours. This is the document the score above was drawn '
+      + 'from, alongside their interview answers.',
+  },
+  unread: {
+    [STITCH_MODE.merged]:
+      'The candidate submitted this with their application, reproduced here exactly as they '
+      + 'sent it. Sam did not read or score it — the judgement above was drawn from their '
+      + 'resume and their interview answers only. It is here so you have it, not because it '
+      + 'counted.',
+    [STITCH_MODE.typeset]:
+      'The candidate submitted this with their application as a Word document; the pages '
+      + 'that follow are its text, set by Sam. Sam did not read or score it — the judgement '
+      + 'above was drawn from their resume and their interview answers only. It is here so '
+      + 'you have it, not because it counted.',
+  },
 };
+
+/** How many pages of candidate documents one attachment will carry before we stop. */
+export const MAX_BOUND_PAGES = 40;
 
 /**
  * The standard PDF fonts encode WinAnsi and nothing else, and real resumes are full of
@@ -107,19 +132,20 @@ function wrap(text, font, size, width) {
 }
 
 /**
- * The page that separates Sam's judgement from the candidate's evidence.
- * It exists so nobody mistakes the resume for something Sam produced.
+ * The page that separates Sam's judgement from the candidate's documents.
+ * It exists so nobody mistakes their document for something Sam produced — or, for a
+ * document Sam never opened, mistakes it for something Sam scored.
  */
-function addDivider(doc, { name, mode, bold, reg }) {
+function addDivider(doc, { label, mode, read, bold, reg }) {
   const page = doc.addPage(PAGE);
   const top = PAGE[1] - 250;
 
-  page.drawRectangle({ x: 0, y: top + 74, width: PAGE[0], height: 4, color: BRAND });
+  page.drawRectangle({ x: 0, y: top + 74, width: PAGE[0], height: 4, color: read ? BRAND : RULE });
 
-  page.drawText('SOURCE DOCUMENT', {
+  page.drawText(read ? 'SOURCE DOCUMENT' : 'ALSO SUBMITTED', {
     x: M, y: top + 34, size: 22, font: bold, color: INK,
   });
-  page.drawText(toWinAnsi(`${name} - submitted with their application`), {
+  page.drawText(toWinAnsi(label), {
     x: M, y: top + 12, size: 11, font: reg, color: SOFT,
   });
 
@@ -129,13 +155,13 @@ function addDivider(doc, { name, mode, bold, reg }) {
   });
 
   let y = top - 34;
-  for (const line of wrap(DIVIDER_NOTE[mode], reg, 10.5, WIDTH)) {
+  for (const line of wrap(DIVIDER_NOTE[read ? 'read' : 'unread'][mode], reg, 10.5, WIDTH)) {
     page.drawText(line, { x: M, y, size: 10.5, font: reg, color: INK });
     y -= 15;
   }
 
-  page.drawText('Everything above this page is Sam’s.', {
-    x: M, y: y - 22, size: 10, font: bold, color: ACCENT,
+  page.drawText(read ? 'Everything above this page is Sam’s.' : 'Sam did not score this document.', {
+    x: M, y: y - 22, size: 10, font: bold, color: read ? ACCENT : SOFT,
   });
   return page;
 }
@@ -156,84 +182,134 @@ function addTypesetPages(doc, text, { bold, reg }) {
 }
 
 /**
- * @param {object} args
- * @param {Buffer} args.snapshotBytes  the rendered Snapshot PDF
- * @param {object} args.response       the survey response, for the resume lookup
- * @param {string} [args.cacheDir]
- * @returns {Promise<{bytes: Buffer, mode: string, pages: number, snapshotPages: number,
- *                    resumePages: number, detail: string}>}
+ * Binds one candidate document onto an open PDFDocument.
+ * Returns what it contributed, or a reason it could not.
  */
-export async function stitchSnapshotWithResume({ snapshotBytes, response, cacheDir }) {
-  const doc = await PDFDocument.load(snapshotBytes);
-  const snapshotPages = doc.getPageCount();
-  const reg = await doc.embedFont(StandardFonts.Helvetica);
-  const bold = await doc.embedFont(StandardFonts.HelveticaBold);
-
-  const only = (detail) => ({
-    bytes: Buffer.from(snapshotBytes),
-    mode: STITCH_MODE.snapshotOnly,
-    pages: snapshotPages,
-    snapshotPages,
-    resumePages: 0,
-    detail,
-  });
-
-  const found = cacheDir
-    ? resumeFileForResponse(response, cacheDir)
-    : resumeFileForResponse(response);
-  if (!found) return only('no resume on file — Snapshot ships alone');
-
-  let source;
+async function bindOne(doc, source, fonts) {
+  let bytes;
   try {
-    source = readFileSync(found.path);
+    bytes = readFileSync(source.path);
   } catch (err) {
-    return only(`resume unreadable (${err.code ?? 'error'}) — Snapshot ships alone`);
+    return { skipped: { label: source.label, reason: `unreadable (${err.code ?? 'error'})` } };
   }
 
-  const name = response?.name ?? 'Candidate';
-
-  if (found.ext === 'pdf') {
+  if (source.ext === 'pdf') {
     try {
-      // ignoreEncryption: a resume with owner-password permissions set still reads fine,
+      // ignoreEncryption: a document with owner-password permissions set still reads fine,
       // and refusing it would cost the reviewer their evidence for no security gain.
-      const src = await PDFDocument.load(source, { ignoreEncryption: true });
+      const src = await PDFDocument.load(bytes, { ignoreEncryption: true });
       const indices = src.getPageIndices();
-      if (!indices.length) return only('resume PDF has no pages — Snapshot ships alone');
+      if (!indices.length) return { skipped: { label: source.label, reason: 'no pages' } };
 
-      addDivider(doc, { name, mode: STITCH_MODE.merged, bold, reg });
+      addDivider(doc, { label: source.label, mode: STITCH_MODE.merged, read: source.read, ...fonts });
       const copied = await doc.copyPages(src, indices);
       for (const page of copied) doc.addPage(page);
-
-      return {
-        bytes: Buffer.from(await doc.save()),
-        mode: STITCH_MODE.merged,
-        pages: doc.getPageCount(),
-        snapshotPages,
-        resumePages: indices.length,
-        detail: `${indices.length}-page resume merged, layout intact`,
-      };
+      return { bound: { label: source.label, read: source.read, mode: STITCH_MODE.merged, pages: indices.length } };
     } catch (err) {
-      return only(`resume PDF would not open (${err.message.slice(0, 60)}) — Snapshot ships alone`);
+      return { skipped: { label: source.label, reason: `would not open (${err.message.slice(0, 50)})` } };
     }
   }
 
-  try {
-    const text = extractDocxText(source);
-    if (!text || !text.trim()) return only('resume text was empty — Snapshot ships alone');
+  if (source.ext === 'docx') {
+    try {
+      const text = extractDocxText(bytes);
+      if (!text || !text.trim()) return { skipped: { label: source.label, reason: 'no text' } };
 
-    addDivider(doc, { name, mode: STITCH_MODE.typeset, bold, reg });
-    const before = doc.getPageCount();
-    addTypesetPages(doc, text, { bold, reg });
-
-    return {
-      bytes: Buffer.from(await doc.save()),
-      mode: STITCH_MODE.typeset,
-      pages: doc.getPageCount(),
-      snapshotPages,
-      resumePages: doc.getPageCount() - before,
-      detail: 'Word document — text typeset by Sam, original layout not preserved',
-    };
-  } catch (err) {
-    return only(`resume text could not be extracted (${err.message.slice(0, 60)}) — Snapshot ships alone`);
+      addDivider(doc, { label: source.label, mode: STITCH_MODE.typeset, read: source.read, ...fonts });
+      const before = doc.getPageCount();
+      addTypesetPages(doc, text, fonts);
+      return { bound: { label: source.label, read: source.read, mode: STITCH_MODE.typeset, pages: doc.getPageCount() - before } };
+    } catch (err) {
+      return { skipped: { label: source.label, reason: `text could not be extracted (${err.message.slice(0, 50)})` } };
+    }
   }
+
+  // Images, legacy .doc, spreadsheets, anything else. We could convert some of them, but
+  // a stated omission is worth more than a silent one — the reviewer still has the file
+  // itself on the record.
+  return { skipped: { label: source.label, reason: `.${source.ext} cannot be bound in` } };
+}
+
+/**
+ * @param {object}   args
+ * @param {Buffer}   args.snapshotBytes  the rendered Snapshot PDF
+ * @param {object[]} args.sources        candidate documents, resume first, each with
+ *                                       `{path, ext, label, read}`. `read` must reflect
+ *                                       what the engine actually parsed.
+ * @returns {Promise<{bytes: Buffer, pages: number, snapshotPages: number,
+ *                    resumePages: number, extraPages: number, mode: string,
+ *                    bound: object[], skipped: object[], detail: string}>}
+ */
+export async function stitchSnapshot({ snapshotBytes, sources = [] }) {
+  const doc = await PDFDocument.load(snapshotBytes);
+  const snapshotPages = doc.getPageCount();
+  const fonts = {
+    reg: await doc.embedFont(StandardFonts.Helvetica),
+    bold: await doc.embedFont(StandardFonts.HelveticaBold),
+  };
+
+  const bound = [];
+  const skipped = [];
+  let budget = MAX_BOUND_PAGES;
+
+  for (const source of sources) {
+    if (budget <= 0) {
+      skipped.push({ label: source.label, reason: `past the ${MAX_BOUND_PAGES}-page limit` });
+      continue;
+    }
+    const result = await bindOne(doc, source, fonts);
+    if (result.bound) { bound.push(result.bound); budget -= result.bound.pages; }
+    else skipped.push(result.skipped);
+  }
+
+  if (!bound.length) {
+    return {
+      bytes: Buffer.from(snapshotBytes),
+      pages: snapshotPages,
+      snapshotPages,
+      resumePages: 0,
+      extraPages: 0,
+      mode: STITCH_MODE.snapshotOnly,
+      bound,
+      skipped,
+      detail: skipped.length
+        ? `nothing could be bound in (${skipped.map((x) => x.reason).join('; ')}) — Snapshot ships alone`
+        : 'no documents on file — Snapshot ships alone',
+    };
+  }
+
+  const read = bound.find((b) => b.read) ?? null;
+  const extras = bound.filter((b) => !b.read);
+  const parts = [
+    read
+      ? (read.mode === STITCH_MODE.typeset
+        ? 'resume typeset from a Word document, original layout not preserved'
+        : `${read.pages}-page resume merged, layout intact`)
+      : 'resume not bound in',
+    extras.length ? `plus ${extras.length} document${extras.length === 1 ? '' : 's'} they also submitted, unscored` : '',
+    skipped.length ? `${skipped.length} left out (${skipped.map((x) => x.reason).join('; ')})` : '',
+  ].filter(Boolean);
+
+  return {
+    bytes: Buffer.from(await doc.save()),
+    pages: doc.getPageCount(),
+    snapshotPages,
+    resumePages: read?.pages ?? 0,
+    extraPages: extras.reduce((n, b) => n + b.pages, 0),
+    mode: read?.mode ?? STITCH_MODE.merged,
+    bound,
+    skipped,
+    detail: parts.join(' · '),
+  };
+}
+
+/**
+ * Every document a candidate supplied, bound in behind the Snapshot.
+ * The resume is the one Sam read; anything else is marked as merely submitted.
+ */
+export async function stitchSnapshotWithResume({ snapshotBytes, response, cacheDir }) {
+  const sources = cacheDir
+    ? candidateFilesForResponse(response, cacheDir)
+    : candidateFilesForResponse(response);
+  return stitchSnapshot({ snapshotBytes, sources });
 }

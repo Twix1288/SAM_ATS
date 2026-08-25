@@ -108,10 +108,19 @@ Then walk it:
 > beside it. That is `candidate.uploadFile` rather than `candidate.uploadResume`, and it is
 > the one call in this integration I would not make differently."
 
-> "And we bind a copy of their resume into ours, because the Files list has no ordering and
-> no way to say *read this one first*. One file, judgement first, evidence behind it. If
+> "And we bind a copy of their documents into ours, because the Files list has no ordering
+> and no way to say *read this one first*. One file, judgement first, evidence behind it. If
 > they sent a Word document we typeset it, and the divider page says so — we do not pretend
 > to a fidelity we do not have."
+
+**Optional, if you want the sharper version — trigger row 33, James Hare.** He attached a
+cover letter as well as a resume. His document runs seven pages: the Snapshot, a divider
+reading **SOURCE DOCUMENT**, his resume, then a second divider reading **ALSO SUBMITTED**
+with the line *Sam did not score this document.*
+
+> "Sam reads the resume and the interview answers. It never opened his cover letter, so it
+> does not get to sit behind a page captioned *source*. It is in there because you should
+> have it, not because it counted."
 
 ---
 

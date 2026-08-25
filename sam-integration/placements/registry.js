@@ -82,7 +82,7 @@ const PLACEMENTS = [
     // The reviewer opens one file and gets the judgement with the evidence underneath it.
     // Ashby's Files list has no ordering and no way to say "read this one first", so two
     // separate documents would leave the reviewer to relate them for themselves.
-    binds: 'the candidate’s own resume, behind a divider page',
+    binds: 'every document the candidate supplied, each behind its own divider page',
     survives: [
       'identity', 'matchScore', 'band', 'poolRank', 'coverage', 'nextStep',
       'experience', 'responsibility', 'roleLevel', 'careerHistory', 'capability',
@@ -95,7 +95,10 @@ const PLACEMENTS = [
       + 'judgement travels with its source. It is a frozen document: re-scoring against a '
       + 'changed rubric means a second file rather than an update, and Ashby keeps both. '
       + 'A resume sent as a Word document is typeset rather than reproduced — the divider '
-      + 'page says so rather than implying a fidelity it does not have.',
+      + 'page says so rather than implying a fidelity it does not have. Anything else they '
+      + 'submitted binds in too, behind a divider that says plainly Sam did not score it: '
+      + 'the engine reads the resume and the interview answers, and a document sitting '
+      + 'behind a page captioned “source” would imply evidence the score never used.',
   },
 ];
 

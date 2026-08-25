@@ -107,11 +107,20 @@ no partner approval, no customer-side configuration.
 A is read without a click; B keeps every pixel behind one. The note names the document, so
 they are one path rather than two competing ones.
 
-B ships as a single file: the Snapshot, a divider page, then the candidate's own resume.
-Ashby's Files list has no ordering and no way to say *read this one first*, so two separate
-documents would leave the reviewer to relate them for themselves. 35 of the 41 resumes are
-PDFs and merge page-for-page; the 6 Word documents are typeset from their text, and the
-divider page says which of the two you are looking at rather than implying fidelity.
+B ships as a single file: the Snapshot, then every document the candidate supplied, each
+behind its own divider page. Ashby's Files list has no ordering and no way to say *read this
+one first*, so separate documents would leave the reviewer to relate them for themselves.
+
+The divider distinguishes what Sam **read** from what the candidate merely **submitted**.
+The engine scores from the resume and the interview answers, so a cover letter it never
+opened sits behind a page that says so — otherwise the document implies evidence the score
+was never drawn from. One candidate in this pool attached one, which is how the distinction
+earned its place.
+
+35 of the 41 resumes are PDFs and merge page-for-page; the 6 Word documents are typeset from
+their text. Formats that cannot be bound in at all are listed in the result rather than
+dropped in silence, and the bound-in pages are capped so an unbounded upload cannot produce
+an unbounded attachment.
 
 **Plus a data layer**, which is not a display:
 
