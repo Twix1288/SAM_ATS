@@ -6,6 +6,7 @@
  * shape of writing four fields at once.
  */
 import { ENDPOINTS, SAM_CUSTOM_FIELDS, CUSTOM_FIELD_OBJECT } from '../../shared/ashby-contract.js';
+import { raiseAlert, ALERT, SEVERITY } from '../delivery/alerts.js';
 import { post, resolveCustomFieldIds } from './client.js';
 
 /**
@@ -89,15 +90,43 @@ export async function setSamScores({ applicationId, snapshot, deliveryId }) {
     // capability writes too, which are the numbers that explain a withheld score. So the
     // real values go in on their own and the failure is reported rather than swallowed.
     if (!cleared.length) throw err;
-    await post(ENDPOINTS.setCustomFields, {
-      objectId: applicationId,
-      objectType: CUSTOM_FIELD_OBJECT.application,
-      values: wire(values.filter((v) => v.value !== CLEAR)),
-    }, { idempotencyKey: `${deliveryId}:customFields:noclear` });
+
+    const names = cleared.map((v) => v.field.name);
+    let kept = 0;
+    try {
+      const rest = values.filter((v) => v.value !== CLEAR);
+      await post(ENDPOINTS.setCustomFields, {
+        objectId: applicationId,
+        objectType: CUSTOM_FIELD_OBJECT.application,
+        values: wire(rest),
+      }, { idempotencyKey: `${deliveryId}:customFields:noclear` });
+      kept = rest.length;
+    } catch { /* reported below — the alert matters more than this second failure */ }
+
+    // This is the one failure where doing nothing leaves wrong data in front of a user, so
+    // it does not rely on anyone reading the response. A scheduled sweep has no reader.
+    raiseAlert({
+      code: ALERT.staleScoreVisible,
+      severity: SEVERITY.critical,
+      message: `Could not clear ${names.join(', ')} on application ${applicationId}. `
+        + 'A previously published score is still visible in Ashby and is no longer supported '
+        + 'by the current evidence. Clear it by hand, or fix the clear mechanism.',
+      context: {
+        applicationId,
+        deliveryId,
+        fields: names,
+        wroteAnyway: kept,
+        ashbyError: err.message,
+        // The value we sent is the assumption under test. If this alert ever fires in
+        // production, this is the line that tells us null was the wrong guess.
+        attemptedClearValue: CLEAR,
+      },
+    });
+
     throw new Error(
-      `Wrote ${values.length - cleared.length} fields, but could not clear `
-      + `${cleared.map((v) => v.field.name).join(', ')} — Ashby rejected a null value `
-      + `(${err.message}). A stale score may still be showing on this record.`,
+      `Wrote ${kept} of ${values.length} fields, but could not clear ${names.join(', ')} — `
+      + `Ashby rejected the clear (${err.message}). A stale score is still showing on this `
+      + 'record; an alert has been raised.',
     );
   }
 

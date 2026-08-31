@@ -9,9 +9,10 @@
     "sam": "ASHBY_API_URL=http://localhost:3001 node sam-integration/server.js",
     "trigger": "node ashby-simulator/trigger_application.js",
     "canvas": "node scripts/build-canvas.js ashby-simulator/output/canvas.html",
-    "test": "node --test \"test/*.test.js\"",
+    "test": "node --test --test-skip-pattern=\"live-ashby\" \"test/*.test.js\"",
     "package": "bash scripts/package.sh",
-    "preflight": "bash scripts/preflight.sh"
+    "preflight": "bash scripts/preflight.sh",
+    "test:live": "node --test test/live-ashby.test.js"
   },
   "dependencies": {
     "pdf-lib": "^1.17.1"

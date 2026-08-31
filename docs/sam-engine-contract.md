@@ -184,6 +184,56 @@ we currently have no way to read them back.
 
 ---
 
+## Unverified against real Ashby
+
+One assumption in this build has never touched `api.ashbyhq.com`, and it is the one that can
+put wrong data in front of a hiring manager.
+
+**Clearing a custom field is undocumented.** Ashby's per-type table covers Boolean, Date,
+String, LongText, ValueSelect, MultiValueSelect, Number, Currency, NumberRange,
+CompensationRange, Url and UUID — what to send to *set* each one. Nothing anywhere says how
+to *unset* one. Not null, not an empty string, not an empty array.
+
+We send `null`, because that is what every other JSON API means by unset. That is a guess.
+
+`test/live-ashby.test.js` is written to settle it against a real org and is **skipped without
+a key**:
+
+```bash
+ASHBY_API_KEY=<key> ASHBY_LIVE_APPLICATION_ID=<uuid> npm run test:live
+```
+
+It tries `null`, `""` and `0` in turn, reports what each one actually does, and fails with
+the working mechanism named if `null` is not it. It restores the field's original value
+afterwards — point it at a sandbox, never a live requisition.
+
+Until that runs, three things contain the guess:
+
+1. `CLEAR` is one constant in `customField.setValue.js`.
+2. If Ashby refuses the clear, the non-null values are written on their own, so a refused
+   clear cannot also lose the coverage number that explains a withheld score.
+3. A **critical alert** fires — see below. Verified end to end with
+   `ASHBY_REJECT_NULL_CLEAR=1`, which makes the simulator refuse a null the way real Ashby
+   might.
+
+## When a clear fails, who finds out
+
+Every other failed write leaves the record as it was and the next sweep retries. A failed
+clear leaves a withdrawn score visible in a filterable column. That cannot depend on someone
+reading an HTTP response, because a scheduled sweep has no reader.
+
+Before this, it did. The pipeline caught the error, recorded a failed stage and returned
+`partial` in a response body. There was no alerting anywhere in the codebase.
+
+`sam-integration/delivery/alerts.js` is the seam. It does the two things that work with no
+account and no dependency — a structured `SAM-ALERT` line on **stderr** for a log aggregator
+to match, and an append to a **file** so an alert outlives the process — and exposes
+`onAlert()` for production to wire to whatever actually pages someone. Raising an alert never
+throws; an alerting path that can fail the delivery it reports on is worse than none.
+
+The alert carries `attemptedClearValue`, so if it ever fires in production that is the line
+that tells us `null` was the wrong guess.
+
 ## Open questions
 
 1. ~~NOT_COLLECTED under résumé-only~~ — **decided**: résumé-only reads report

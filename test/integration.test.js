@@ -22,6 +22,7 @@ import { OPEN_QUESTIONS, HIGH_RISK } from '../scripts/questions.js';
 import { snapshotFromEnginePayload, validateEnginePayload, MIN_SCOREABLE_COVERAGE, scoreIsPublishable } from '../sam-integration/ingest/enginePayload.js';
 import { samFieldValues, CLEAR } from '../sam-integration/endpoints/customField.setValue.js';
 import { seedApplicant, setCustomFieldValues, getApplication, CUSTOM_FIELDS } from '../ashby-simulator/store.js';
+import { raiseAlert, listAlerts, resetAlerts, onAlert, ALERT, SEVERITY } from '../sam-integration/delivery/alerts.js';
 import { SAM_CUSTOM_FIELDS } from '../shared/ashby-contract.js';
 import { extractPdfText } from '../sam-integration/ingest/pdf.js';
 import { renderSnapshotPdf } from '../sam-integration/render/snapshot.js';
@@ -1111,5 +1112,49 @@ describe('The coverage floor is inclusive at exactly 50%', () => {
     const roleFitOf = (s) => samFieldValues(s).find((v) => v.field === SAM_CUSTOM_FIELDS.roleFit).value;
     assert.equal(roleFitOf(at), 80, 'at exactly the floor the score is written');
     assert.equal(roleFitOf(below), CLEAR, 'a hair below and it is cleared');
+  });
+});
+
+describe('A refused clear reaches a human', () => {
+  // The alerting path exists for exactly one failure: a score we withdrew that is still
+  // visible in Ashby. Every other failed write leaves the record as it was; this one leaves
+  // it wrong. A scheduled sweep has nobody reading its response, so the response is not
+  // where this can be reported.
+  test('the failure raises a critical alert naming the record and the field', () => {
+    resetAlerts();
+    const alert = raiseAlert({
+      code: ALERT.staleScoreVisible,
+      severity: SEVERITY.critical,
+      message: 'Could not clear Sam Role Fit on application app_123.',
+      context: { applicationId: 'app_123', fields: ['Sam Role Fit'], attemptedClearValue: null },
+    });
+    assert.equal(alert.severity, SEVERITY.critical,
+      'wrong data in front of a hiring manager is not a warning');
+    assert.equal(alert.code, ALERT.staleScoreVisible);
+    assert.match(alert.message, /app_123/, 'an alert nobody can act on is noise');
+    assert.equal(listAlerts().length, 1);
+  });
+
+  test('raising an alert never throws, whatever the sink does', () => {
+    resetAlerts();
+    onAlert(() => { throw new Error('pager is down'); });
+    assert.doesNotThrow(() => raiseAlert({
+      code: ALERT.staleScoreVisible, severity: SEVERITY.critical, message: 'x', context: {},
+    }), 'an alerting path that can fail the delivery it reports on is worse than none');
+    onAlert(null);
+    assert.equal(listAlerts().length, 1, 'the alert is still recorded when the sink fails');
+  });
+
+  test('the alert carries the value we tried, so a wrong guess is diagnosable', () => {
+    resetAlerts();
+    const alert = raiseAlert({
+      code: ALERT.staleScoreVisible,
+      severity: SEVERITY.critical,
+      message: 'm',
+      context: { attemptedClearValue: CLEAR, ashbyError: 'received object' },
+    });
+    // If this ever fires in production it is the line that tells us null was wrong.
+    assert.ok('attemptedClearValue' in alert.context);
+    assert.ok('ashbyError' in alert.context);
   });
 });

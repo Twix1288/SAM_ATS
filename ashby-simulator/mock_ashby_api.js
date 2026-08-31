@@ -184,6 +184,13 @@ const HANDLERS = {
     for (const { fieldId, fieldValue } of values) {
       const field = CUSTOM_FIELDS.find((f) => f.id === fieldId);
       if (!field) return fail(`No custom field exists with id ${fieldId}.`);
+      // ASHBY_REJECT_NULL_CLEAR models the case where our guess is wrong: Ashby has no
+      // documented unset mechanism, so the walkthrough needs to be able to show what
+      // happens when it refuses one. This is the only way to exercise that path without
+      // an account.
+      if (fieldValue === null && process.env.ASHBY_REJECT_NULL_CLEAR) {
+        return fail(`Custom field "${field.title}" is a Number field but received object.`);
+      }
       // null clears a field, whatever its type. Ashby does not document how to unset a
       // value — the per-type table says what to send to SET one and is silent on
       // removing one — so this models the reading that matches every other JSON API.
