@@ -34,6 +34,21 @@ const log = (m, x = '') => console.log(`${c.sam}[Sam]${c.off} ${m}${x ? ` ${c.di
 const warn = (m, x = '') => console.log(`${c.warn}[Sam]${c.off} ${m}${x ? ` ${c.dim}${x}${c.off}` : ''}`);
 const bad = (m, x = '') => console.log(`${c.bad}[Sam]${c.off} ${m}${x ? ` ${c.dim}${x}${c.off}` : ''}`);
 
+/**
+ * DEMO ONLY — scoring lives here so the walkthrough runs with no external dependency.
+ *
+ * In the real system this is not our job. Per Ash: Ashby form data goes to a Sam endpoint,
+ * and the extraction and grading logic stays on Sam's side, deliberately — it is how they
+ * capture the data. Our half starts at the scored payload and ends at the Ashby record.
+ *
+ * The seam for that already exists and is tested: `ingest/enginePayload.js` turns a contract
+ * payload into the exact view model the PDF and the note render, with no scorer in reach.
+ * Replacing this block is a wiring change, not a redesign — see docs/sam-engine-contract.md,
+ * "When the real engine lands".
+ *
+ * Kept as-is for Friday on purpose. Do not "fix" it by calling a Sam endpoint that does not
+ * exist yet; that would trade a working demo for a broken one.
+ */
 // ── Pool is scored once at boot. A candidate can never be scored in isolation. ──
 log(`compiling rubric from "${ROLE.title}"`, ROLE.source);
 const pool = loadPool(SURVEY);

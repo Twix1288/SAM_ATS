@@ -99,6 +99,25 @@ job title. The engine sends ids; we resolve them.
 
 ---
 
+## When the real engine lands
+
+The demo in this repo scores locally, at `sam-integration/server.js`. That is scaffolding, not
+architecture — grading stays on Sam's side, and this half starts at the scored payload.
+
+It is kept that way on purpose so the walkthrough runs with no dependency on an engine that
+does not exist yet. Five things change when it does, and none of them is a redesign:
+
+| Today, for the demo | In production |
+|---|---|
+| `scorePool(pool)` at boot, from the survey file | POST the candidate to Sam's endpoint, receive a contract payload |
+| `buildSnapshot(score, response)` | `snapshotFromEnginePayload(payload, ashby)` — already written and tested |
+| Rubrics in a hardcoded registry | Pull each job description once when the job is added, store it |
+| `POST /webhooks/applicationSubmit` drives delivery | `sweepJob()` on a timer drives delivery — already written and tested |
+| Scored from résumé + voice answers | Résumé only, since the job description is already stored |
+
+The two that already exist as tested code — the engine adapter and the sweep — are the ones
+that would otherwise be the hard part. What is left is wiring and a job-description store.
+
 ## The two things we plan around — built, not described
 
 ### One Snapshot per person, per job
