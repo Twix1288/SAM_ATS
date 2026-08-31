@@ -1,4 +1,4 @@
-import { test, describe } from 'node:test';
+import { test, describe, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHmac } from 'node:crypto';
 import { join } from 'node:path';
@@ -23,6 +23,7 @@ import { snapshotFromEnginePayload, validateEnginePayload, MIN_SCOREABLE_COVERAG
 import { samFieldValues, CLEAR } from '../sam-integration/endpoints/customField.setValue.js';
 import { seedApplicant, setCustomFieldValues, getApplication, CUSTOM_FIELDS } from '../ashby-simulator/store.js';
 import { raiseAlert, listAlerts, resetAlerts, onAlert, ALERT, SEVERITY } from '../sam-integration/delivery/alerts.js';
+import { sweepJob, sweepAll, resetCursors, SWEEP_OUTCOME } from '../sam-integration/delivery/sweep.js';
 import { SAM_CUSTOM_FIELDS } from '../shared/ashby-contract.js';
 import { extractPdfText } from '../sam-integration/ingest/pdf.js';
 import { renderSnapshotPdf } from '../sam-integration/render/snapshot.js';
@@ -576,21 +577,23 @@ describe('retrying a write that is not idempotent', () => {
 describe('reconciling a candidateMerge', () => {
   const SRC = 'src-candidate-1';
   const DST = 'dst-candidate-1';
+  const JOB = 'job-sales-ae';
 
   test('the ledger records where Sam wrote', () => {
     ledger.record({
-      candidateId: SRC, applicationId: 'app-1',
+      candidateId: SRC, jobId: JOB, applicationId: 'app-1',
       snapshot: { candidate: { name: 'Test' } }, dossierUrl: 'https://sam.app/x', filename: 'x.pdf',
     });
-    assert.equal(ledger.lookup(SRC).applicationId, 'app-1');
+    assert.equal(ledger.lookup(SRC, JOB).applicationId, 'app-1');
   });
 
-  test('re-pointing moves the record and retires the old id', () => {
+  test('re-pointing moves every job the person was scored for', () => {
     const moved = ledger.repoint(SRC, DST);
-    assert.equal(moved.candidateId, DST);
-    assert.equal(moved.mergedFrom, SRC);
-    assert.equal(ledger.lookup(SRC), null, 'the retired id must stop resolving');
-    assert.equal(ledger.lookup(DST).applicationId, 'app-1');
+    assert.equal(moved.length, 1);
+    assert.equal(moved[0].candidateId, DST);
+    assert.equal(moved[0].mergedFrom, SRC);
+    assert.equal(ledger.lookup(SRC, JOB), null, 'the retired id must stop resolving');
+    assert.equal(ledger.lookup(DST, JOB).applicationId, 'app-1');
   });
 
   test('a merge Sam never touched reports nothing to move rather than failing', async () => {
@@ -1156,5 +1159,133 @@ describe('A refused clear reaches a human', () => {
     // If this ever fires in production it is the line that tells us null was wrong.
     assert.ok('attemptedClearValue' in alert.context);
     assert.ok('ashbyError' in alert.context);
+  });
+});
+
+describe('The scheduled sweep scores each person once', () => {
+  // The two guarantees Ash asked us to plan around: run on a schedule, and one Snapshot per
+  // person. Both live or die on the ledger and the cursor, so both are tested against the
+  // real store rather than mocked.
+  const JOB = 'job-sales-ae';
+  const OTHER_JOB = 'job-support-lead';
+
+  const app = (id, candidateId, createdAt) => ({ id, candidateId, createdAt });
+
+  // Stands in for Ashby's application.list, honouring createdAfter the way the real one does
+  // — so the cursor is exercised rather than assumed.
+  let listing = [];
+  const mockList = (applications) => { listing = applications; };
+  const listApplications = async (body) => ({
+    results: body.createdAfter
+      ? listing.filter((a) => a.createdAt > body.createdAfter)
+      : listing,
+  });
+
+  /** Stands in for the engine + delivery, recording who it was asked to score. */
+  const recordingEngine = (scored, opts = {}) => async ({ application, jobId }) => {
+    if (opts.failFor === application.candidateId) throw new Error('engine unavailable');
+    scored.push(application.candidateId);
+    ledger.record({
+      candidateId: application.candidateId,
+      jobId,
+      applicationId: application.id,
+      snapshot: { candidate: { name: 'x' } },
+      dossierUrl: 'https://sam.app/x',
+    });
+    return { outcome: 'complete' };
+  };
+
+  beforeEach(() => { ledger.reset(); resetCursors(); resetAlerts(); });
+
+  test('a person seen in two consecutive sweeps is scored once', async () => {
+    const scored = [];
+    const applications = [app('a1', 'cand-1', '2026-08-01T10:00:00Z')];
+    mockList(applications);
+
+    await sweepJob({ jobId: JOB, listApplications, scoreAndDeliver: recordingEngine(scored) });
+    await sweepJob({ jobId: JOB, listApplications, scoreAndDeliver: recordingEngine(scored) });
+
+    assert.deepEqual(scored, ['cand-1'], 'the second sweep must skip an already-scored person');
+  });
+
+  test('the ledger still prevents a second Snapshot when the cursor is lost', async () => {
+    // The cursor is an optimisation — it keeps the query small. The ledger is the actual
+    // guarantee, and this is the case that tells them apart: a process restart, a cursor
+    // reset, or an overlap window hands the sweep a candidate it has already scored.
+    const scored = [];
+    mockList([app('a1', 'cand-1', '2026-08-01T10:00:00Z')]);
+    await sweepJob({ jobId: JOB, listApplications, scoreAndDeliver: recordingEngine(scored) });
+
+    resetCursors();  // the cursor is gone; the ledger is not
+
+    const second = await sweepJob({ jobId: JOB, listApplications, scoreAndDeliver: recordingEngine(scored) });
+    assert.equal(second.seen, 1, 'without a cursor the sweep sees them again');
+    assert.equal(second.skipped, 1, 'and the ledger is what stops the second Snapshot');
+    assert.equal(second.delivered, 0);
+    assert.equal(scored.length, 1,
+      'the skip happens before the engine is called — scoring is the expensive half');
+  });
+
+  test('one person applying to two jobs gets a Snapshot for each', async () => {
+    const scored = [];
+    mockList([app('a1', 'cand-1', '2026-08-01T10:00:00Z')]);
+    await sweepJob({ jobId: JOB, listApplications, scoreAndDeliver: recordingEngine(scored) });
+    await sweepJob({ jobId: OTHER_JOB, listApplications, scoreAndDeliver: recordingEngine(scored) });
+
+    assert.deepEqual(scored, ['cand-1', 'cand-1'],
+      'the same person is a different candidate for a different job');
+    assert.ok(ledger.wasDelivered('cand-1', JOB));
+    assert.ok(ledger.wasDelivered('cand-1', OTHER_JOB));
+  });
+
+  test('the cursor advances to the newest application seen, never to wall-clock time', async () => {
+    mockList([
+      app('a1', 'cand-1', '2026-08-01T10:00:00Z'),
+      app('a2', 'cand-2', '2026-08-01T11:30:00Z'),
+    ]);
+    const pass = await sweepJob({ jobId: JOB, listApplications, scoreAndDeliver: recordingEngine([]) });
+
+    assert.equal(pass.cursorFrom, null, 'the first sweep of a job has no cursor');
+    assert.equal(pass.cursorTo, '2026-08-01T11:30:00Z',
+      'advancing past what we saw would step over an application created mid-sweep');
+  });
+
+  test('one candidate failing does not stop the sweep', async () => {
+    const scored = [];
+    mockList([
+      app('a1', 'cand-1', '2026-08-01T10:00:00Z'),
+      app('a2', 'cand-2', '2026-08-01T10:05:00Z'),
+      app('a3', 'cand-3', '2026-08-01T10:10:00Z'),
+    ]);
+    const pass = await sweepJob({
+      jobId: JOB,
+      listApplications,
+      scoreAndDeliver: recordingEngine(scored, { failFor: 'cand-2' }),
+    });
+
+    assert.equal(pass.delivered, 2);
+    assert.equal(pass.failed, 1);
+    assert.deepEqual(scored, ['cand-1', 'cand-3'],
+      'a sweep that stops on the first error silently stops scoring everyone behind them');
+  });
+
+  test('a failed candidate keeps no ledger entry, so the next sweep retries them', async () => {
+    const scored = [];
+    mockList([app('a1', 'cand-1', '2026-08-01T10:00:00Z')]);
+    await sweepJob({ jobId: JOB, listApplications, scoreAndDeliver: recordingEngine(scored, { failFor: 'cand-1' }) });
+    assert.equal(ledger.wasDelivered('cand-1', JOB), false);
+
+    await sweepJob({ jobId: JOB, listApplications, scoreAndDeliver: recordingEngine(scored) });
+    assert.deepEqual(scored, ['cand-1'], 'the retry must actually happen');
+  });
+
+  test('failures raise a warning rather than dying quietly', async () => {
+    mockList([app('a1', 'cand-1', '2026-08-01T10:00:00Z')]);
+    await sweepJob({ jobId: JOB, listApplications, scoreAndDeliver: recordingEngine([], { failFor: 'cand-1' }) });
+    const alerts = listAlerts();
+    assert.equal(alerts.length, 1);
+    assert.equal(alerts[0].code, ALERT.deliveryIncomplete);
+    assert.equal(alerts[0].severity, SEVERITY.warning,
+      'nothing incorrect is on the record — it is incomplete, not wrong');
   });
 });

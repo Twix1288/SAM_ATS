@@ -189,7 +189,13 @@ export async function deliverSnapshot(ctx) {
   // rather than silent data loss.
   if (fields || attachment || note) {
     recordDelivery({
-      candidateId, applicationId, snapshot, dossierUrl,
+      candidateId,
+      // Keyed with the job, so one person applying to two roles gets a Snapshot for each
+      // instead of the second sweep seeing them as already delivered.
+      jobId: rubric?.jobId ?? 'unknown-job',
+      applicationId,
+      snapshot,
+      dossierUrl,
       filename: attachment ? filename : null,
     });
   }

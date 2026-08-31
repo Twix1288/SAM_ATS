@@ -99,71 +99,49 @@ job title. The engine sends ids; we resolve them.
 
 ---
 
-## Three things that change because it is a sweep
+## The two things we plan around — built, not described
 
-### 1. Résumé-only reads report NOT_COLLECTED — decided, and it needs a guard
+### One Snapshot per person, per job
 
-**Decision: a résumé cannot ask, so an anchor it cannot evidence is `NOT_COLLECTED`, not
-`NOT_MET`.** That is right per anchor — the candidate is not penalised for a question nobody
-put to them — and `NOT_COLLECTED` drops out of the denominator as designed.
+`delivery/ledger.js` is keyed on **`(candidateId, jobId)`**, not on the candidate. One person
+applying to two roles gets a Snapshot for each, scored against each job's own rubric; keying
+on the person alone would leave whichever job swept second with nothing.
 
-In aggregate it is dangerous, and the danger is not theoretical. A sweep where one anchor of
-six is observable and met produces:
+The check runs **before** the engine is called, because scoring is the expensive half.
 
-```
-Role Fit 100%   at 25% coverage
-```
+In production this is a table with a unique index on `(candidate_id, job_id)` — the index is
+what makes a double-delivery impossible under a concurrent sweep rather than merely unlikely.
 
-The 100 is what lands in Ashby's sortable, filterable field. The 25 does not go with it. A
-reviewer filtering `Sam Role Fit ≥ 65` gets a one-anchor read at the top of their list, and
-nothing on that screen says why.
+### The scheduled sweep
 
-So the score is gated on coverage:
+`delivery/sweep.js`. Per job: ask Ashby for applications created since the cursor, skip
+anyone the ledger already has, hand the rest to the engine, write the Snapshot.
 
-| | Below 50% coverage | At or above |
-|---|---|---|
-| Band | `Insufficient evidence` | normal band |
-| PDF headline | `—` | the percentage |
-| Ashby Role Fit field | **not written** | written |
-| Note headline | "Not scored — only N% of the rubric was observable" | normal |
-| Coverage field | **always written** | always written |
+Three behaviours worth knowing, each with a test:
 
-Coverage is always written because it is the number that explains the empty one.
+- **The cursor advances only to an application we actually saw**, never to wall-clock time.
+  A sweep starting at 10:00 that advanced to "now" would step over an application created at
+  10:00:30 while it was still running, permanently.
+- **The cursor never advances past a failure.** A candidate whose scoring failed keeps no
+  ledger entry, so the next sweep is their retry — but only if the cursor has not already
+  excluded them from the query. Getting this wrong means they are never scored and nothing
+  anywhere says so.
+- **One candidate failing does not end the pass.** The next person in the list is unrelated.
 
-`MIN_SCOREABLE_COVERAGE` is one constant in `enginePayload.js` and every surface reads it.
-Raise it if the résumé sweep turns out thinner than expected. The reasoning is that a
-coverage-denominated score is only comparable between candidates at similar coverage — a
-document can carry that caveat, a filterable integer cannot.
+The cursor is an optimisation; the ledger is the guarantee. If the cursor is lost to a
+restart, the sweep sees everyone again and the ledger still prevents a second Snapshot —
+there is a test for exactly that.
 
-**What this means for the engine:** send `coverage` honestly and do not compensate. If a
-résumé sweep genuinely only evidences a quarter of the rubric, say so and let the gate do its
-job. The failure mode we are protecting against is a confident number, not a low one.
+Both the engine and the Ashby read are injected, so neither guarantee needs a network to test.
 
-### 2. No webhook means no delivery id
+### What we still need from you on this
 
-The mockup keys idempotency on `webhookActionId`, which Ashby guarantees stable across its
-own retries. A sweep has no such id, so **`scoreId` becomes the idempotency key** — it must
-be stable for the same (candidate, job, rubric version).
-
-Also needed: **a cursor per job** (last-swept timestamp) and a **ledger keyed on
-`(ashbyCandidateId, ashbyJobId)`** — not on candidate alone, since one person can apply to
-two jobs and should get a Snapshot for each.
-
-And `candidateMerge` no longer arrives as an event. A sweep will silently re-score a merged
-candidate or lose the old one. Either subscribe to that webhook anyway, or reconcile on
-ledger misses.
-
-### 3. Pool rank cannot be computed one candidate at a time
-
-The Snapshot prints *"2 of 41 · top 5%"*. That needs the cohort. In a trickle, the first
-person swept is "1 of 1", which is worse than printing nothing.
-
-Options: the engine maintains a per-job score distribution and returns a percentile; or we
-compute rank at render time from Ashby's own custom-field values; or we **drop rank** until
-a job has enough scored candidates to make it meaningful. Cheapest honest answer is the
-third — suppress it under a threshold.
-
----
+- **`candidateMerge` no longer arrives as an event.** A sweep has no webhook. Either we keep
+  a webhook subscription alongside the sweep, or we reconcile when a ledger entry points at
+  an id that has stopped resolving. Worth a decision.
+- **Re-scoring.** The rubric is expanding, so a candidate scored under v1 will one day be
+  behind. `rubricVersion` is in the payload, so we *can* detect it — the question is whether
+  a new version means re-issuing the Snapshot, and whether that replaces or appends.
 
 ## What Ashby actually exposes — verified against their reference
 
@@ -236,8 +214,11 @@ that tells us `null` was the wrong guess.
 
 ## Open questions
 
-1. ~~NOT_COLLECTED under résumé-only~~ — **decided**: résumé-only reads report
-   `NOT_COLLECTED`, and the score is gated below 50% coverage. See above.
+1. **How thin a read still publishes a number.** Grading is yours; what we put in Ashby's
+   sortable field is ours. Today we withhold the Role Fit number below 50% coverage, because
+   a coverage-denominated score is only comparable between candidates at similar coverage and
+   a filterable integer cannot carry that caveat. `MIN_SCOREABLE_COVERAGE` is one constant —
+   tell us if that line is in the wrong place once you see real sweep coverage.
 2. **Where does consent live** — application form (unreadable) or Questionnaire survey
    (readable via `surveySubmission.list`)? Worth deciding before the form is configured.
 3. **Re-scoring on rubric change** — the rubric is expanding. When v2 ships, does a candidate

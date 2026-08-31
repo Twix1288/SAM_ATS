@@ -19,7 +19,7 @@
  */
 import { setSamScores } from '../endpoints/customField.setValue.js';
 import { createSnapshotNote } from '../endpoints/candidate.createNote.js';
-import { repoint, lookup } from './ledger.js';
+import { repoint, lookupAll } from './ledger.js';
 
 export const MERGE_OUTCOME = {
   resynced: 'resynced',
@@ -41,15 +41,19 @@ export async function reconcileMerge({
   const step = (label, ok, detail) => { onStep({ label, ok, detail }); return { label, ok, detail }; };
   const steps = [];
 
-  const previous = lookup(sourceCandidateId);
-  if (!previous) {
+  const previous = lookupAll(sourceCandidateId);
+  if (!previous.length) {
     steps.push(step('Check the ledger', true, `Sam never wrote to ${sourceCandidateId.slice(0, 8)} — nothing to move`));
     return { outcome: MERGE_OUTCOME.nothingToMove, steps, moved: null };
   }
 
-  const moved = repoint(sourceCandidateId, destinationCandidateId);
+  // A merge is about the person, so every job they were scored against moves. Someone who
+  // applied to three roles keeps all three Snapshots on the surviving record.
+  const movedAll = repoint(sourceCandidateId, destinationCandidateId);
+  const moved = movedAll[0];
   steps.push(step('Re-point the ledger', true,
-    `${sourceCandidateId.slice(0, 8)} → ${destinationCandidateId.slice(0, 8)}`));
+    `${movedAll.length} delivery${movedAll.length === 1 ? '' : 's'} · `
+    + `${sourceCandidateId.slice(0, 8)} → ${destinationCandidateId.slice(0, 8)}`));
 
   // The application may survive the merge unchanged; prefer the id the webhook gives us.
   const targetApplication = applicationId ?? moved.applicationId;
