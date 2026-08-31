@@ -184,7 +184,11 @@ const HANDLERS = {
     for (const { fieldId, fieldValue } of values) {
       const field = CUSTOM_FIELDS.find((f) => f.id === fieldId);
       if (!field) return fail(`No custom field exists with id ${fieldId}.`);
-      if (field.fieldType === 'Number' && typeof fieldValue !== 'number') {
+      // null clears a field, whatever its type. Ashby does not document how to unset a
+      // value — the per-type table says what to send to SET one and is silent on
+      // removing one — so this models the reading that matches every other JSON API.
+      // It is on the questions list, and it is the one place a wrong guess shows up.
+      if (fieldValue !== null && field.fieldType === 'Number' && typeof fieldValue !== 'number') {
         return fail(`Custom field "${field.title}" is a Number field but received ${typeof fieldValue}.`);
       }
       written.push({ field: field.title, value: fieldValue });

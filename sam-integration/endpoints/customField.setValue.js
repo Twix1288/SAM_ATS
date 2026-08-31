@@ -13,6 +13,19 @@ import { post, resolveCustomFieldIds } from './client.js';
  * exact problem this engine exists to prevent, one system downstream.
  */
 /**
+ * What we send to empty a field we are no longer willing to assert.
+ *
+ * Ashby does not document how to clear a custom field value — the per-type table covers
+ * what to send to SET one and says nothing about unsetting. `null` is the reading that
+ * matches every other JSON API, and it is isolated here so a correction is one line. It is
+ * on the questions list.
+ *
+ * If Ashby rejects null the batch fails loudly, which is the right failure: a visible error
+ * beats a stale score sitting in a filterable column with nothing marking it as old.
+ */
+export const CLEAR = null;
+
+/**
  * The values Sam writes into Ashby's own fields.
  *
  * Separated from the call so what we are willing to assert about a candidate is testable
@@ -23,21 +36,35 @@ import { post, resolveCustomFieldIds } from './client.js';
  * @returns {{field: object, value: number|string}[]}
  */
 export function samFieldValues(snapshot) {
+  // EVERY field is written on EVERY delivery, and a value we will not assert is sent as an
+  // explicit clear rather than omitted.
+  //
+  // This is the whole point of the function. customField.setValues merges — it touches only
+  // the fields named in the call — so skipping a field leaves whatever was there before.
+  // The candidate re-scored from 72% coverage down to 40% would keep last sweep's Role Fit
+  // sitting in Ashby's filterable column, now attached to a read that no longer supports it.
+  // A stale number is worse than the misleading number we refused to write, because nothing
+  // on the record marks it as old.
   return [
-    // Role Fit is the value a reviewer sorts and filters on, so it is the one that must
-    // never overstate. Below the coverage floor we write nothing into it: an empty cell
-    // reads as "not scored", where a 100 from one observable anchor reads as the best
-    // candidate in the pipeline. Coverage is always written — it is the number that
-    // explains the empty one.
-    ...(snapshot.scoreIsPublishable === false
-      ? []
-      : [{ field: SAM_CUSTOM_FIELDS.roleFit, value: Math.round(snapshot.roleFit * 100) }]),
+    // Role Fit is what a reviewer sorts and filters on, so it must never overstate. Below
+    // the coverage floor it is cleared: an empty cell reads as "not scored", where a 100
+    // from one observable anchor reads as the best candidate in the pipeline.
+    {
+      field: SAM_CUSTOM_FIELDS.roleFit,
+      value: snapshot.scoreIsPublishable === false ? CLEAR : Math.round(snapshot.roleFit * 100),
+    },
+    // Coverage is always a real number — it is what explains a cleared Role Fit.
     { field: SAM_CUSTOM_FIELDS.coverage, value: Math.round(snapshot.coverage * 100) },
     { field: SAM_CUSTOM_FIELDS.capability, value: snapshot.capability },
-    // A sweep has no cohort. Rank is omitted rather than invented.
-    ...(snapshot.pool
-      ? [{ field: SAM_CUSTOM_FIELDS.poolRank, value: `${snapshot.pool.roleFitRank} of ${snapshot.pool.size} (top ${snapshot.pool.topPercent}%)` }]
-      : []),
+    // A scheduled sweep scores one person and has no cohort. Rank is cleared rather than
+    // invented — and cleared rather than skipped, so a candidate who had a rank from a
+    // batch run does not keep it through a sweep that could not compute one.
+    {
+      field: SAM_CUSTOM_FIELDS.poolRank,
+      value: snapshot.pool
+        ? `${snapshot.pool.roleFitRank} of ${snapshot.pool.size} (top ${snapshot.pool.topPercent}%)`
+        : CLEAR,
+    },
   ];
 }
 
@@ -47,11 +74,32 @@ export async function setSamScores({ applicationId, snapshot, deliveryId }) {
 
   const values = samFieldValues(snapshot);
 
-  await post(ENDPOINTS.setCustomFields, {
-    objectId: applicationId,
-    objectType: CUSTOM_FIELD_OBJECT.application,
-    values: values.map(({ field, value }) => ({ fieldId: ids.get(field.name), fieldValue: value })),
-  }, { idempotencyKey: `${deliveryId}:customFields` });
+  const wire = (list) => list.map(({ field, value }) => ({ fieldId: ids.get(field.name), fieldValue: value }));
+  const cleared = values.filter((v) => v.value === CLEAR);
+
+  try {
+    await post(ENDPOINTS.setCustomFields, {
+      objectId: applicationId,
+      objectType: CUSTOM_FIELD_OBJECT.application,
+      values: wire(values),
+    }, { idempotencyKey: `${deliveryId}:customFields` });
+  } catch (err) {
+    // Clearing rests on an undocumented assumption: that null unsets a value. If Ashby
+    // rejects it the whole batch is refused — and then we would lose the coverage and
+    // capability writes too, which are the numbers that explain a withheld score. So the
+    // real values go in on their own and the failure is reported rather than swallowed.
+    if (!cleared.length) throw err;
+    await post(ENDPOINTS.setCustomFields, {
+      objectId: applicationId,
+      objectType: CUSTOM_FIELD_OBJECT.application,
+      values: wire(values.filter((v) => v.value !== CLEAR)),
+    }, { idempotencyKey: `${deliveryId}:customFields:noclear` });
+    throw new Error(
+      `Wrote ${values.length - cleared.length} fields, but could not clear `
+      + `${cleared.map((v) => v.field.name).join(', ')} — Ashby rejected a null value `
+      + `(${err.message}). A stale score may still be showing on this record.`,
+    );
+  }
 
   return values.map(({ field, value }) => ({ name: field.name, value }));
 }

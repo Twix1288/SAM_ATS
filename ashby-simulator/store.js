@@ -144,8 +144,18 @@ export function setCustomFieldValues(objectId, values) {
   for (const { fieldId, fieldValue } of values) {
     const def = CUSTOM_FIELDS.find((f) => f.id === fieldId);
     if (!def) continue;
-    const existing = app.customFields.find((v) => v.id === fieldId);
-    if (existing) existing.value = fieldValue;
+    const at = app.customFields.findIndex((v) => v.id === fieldId);
+
+    // A null clears the field. Ashby's own reads return only the fields that have a value,
+    // so a cleared one leaves the array entirely rather than sitting there as an explicit
+    // null — which is what makes the difference between "no score" and "a score of nothing"
+    // visible to everything downstream, the UI's empty cell included.
+    if (fieldValue === null || fieldValue === undefined) {
+      if (at !== -1) app.customFields.splice(at, 1);
+      continue;
+    }
+
+    if (at !== -1) app.customFields[at].value = fieldValue;
     else app.customFields.push({ id: fieldId, title: def.title, fieldType: def.fieldType, value: fieldValue });
   }
   return app;

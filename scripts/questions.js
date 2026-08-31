@@ -98,6 +98,29 @@ export const OPEN_QUESTIONS = [
       + 'their score.',
   },
   {
+    topic: 'Clearing a custom field value',
+    risk: 'high',
+    question:
+      'How does an integration clear a custom field value it has already written? Is '
+      + '`fieldValue: null` accepted by customField.setValues, or is there another way to '
+      + 'unset one?',
+    assumption:
+      'That null clears it. Your per-type table says what to send to SET each field type and '
+      + 'is silent on removing a value. We need this because a score is not permanent: a '
+      + 'candidate re-scored on thinner evidence has to lose the number we published last '
+      + 'time, and setValues merges — skipping the field leaves the old value in place. So '
+      + 'we send null, and if you reject it we write the remaining fields on their own and '
+      + 'report that the clear did not land, rather than silently losing them too.',
+    whyAshby:
+      'The documentation covers setting values and not unsetting them, and the only way to '
+      + 'find out otherwise is to write a value into a live account and try to remove it.',
+    consequence:
+      'This is the one that can put wrong data in front of a hiring manager. A stale Role Fit '
+      + 'sits in a filterable column attached to a read that no longer supports it, with '
+      + 'nothing on the record marking it as old — worse than the misleading number we '
+      + 'refused to write in the first place, because at least that one was current.',
+  },
+  {
     topic: 'Ashby’s own AI Application Review',
     risk: 'medium',
     question:

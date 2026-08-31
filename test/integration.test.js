@@ -19,8 +19,9 @@ import { reconcileMerge, MERGE_OUTCOME } from '../sam-integration/delivery/merge
 import * as db from '../ashby-simulator/store.js';
 import { rubricForJob, UnknownJobError, registeredJobs } from '../sam-integration/services/rubrics.js';
 import { OPEN_QUESTIONS, HIGH_RISK } from '../scripts/questions.js';
-import { snapshotFromEnginePayload, validateEnginePayload, MIN_SCOREABLE_COVERAGE } from '../sam-integration/ingest/enginePayload.js';
-import { samFieldValues } from '../sam-integration/endpoints/customField.setValue.js';
+import { snapshotFromEnginePayload, validateEnginePayload, MIN_SCOREABLE_COVERAGE, scoreIsPublishable } from '../sam-integration/ingest/enginePayload.js';
+import { samFieldValues, CLEAR } from '../sam-integration/endpoints/customField.setValue.js';
+import { seedApplicant, setCustomFieldValues, getApplication, CUSTOM_FIELDS } from '../ashby-simulator/store.js';
 import { SAM_CUSTOM_FIELDS } from '../shared/ashby-contract.js';
 import { extractPdfText } from '../sam-integration/ingest/pdf.js';
 import { renderSnapshotPdf } from '../sam-integration/render/snapshot.js';
@@ -975,13 +976,16 @@ describe('A thin read refuses to publish a score', () => {
     assert.equal(s.band, 'Insufficient evidence');
   });
 
-  test('the withheld score never reaches Ashby’s sortable field', () => {
+  test('the withheld score is cleared in Ashby, not left unwritten', () => {
     const values = samFieldValues(sweep(1));
-    const ids = values.map((v) => v.field);
-    assert.ok(!ids.includes(SAM_CUSTOM_FIELDS.roleFit),
-      'a 100 here would put a one-anchor read at the top of the reviewer’s list');
-    assert.ok(ids.includes(SAM_CUSTOM_FIELDS.coverage),
-      'coverage is always written — it is the number that explains the empty one');
+    const valueOf = (f) => values.find((v) => v.field === f);
+
+    // Present in the call and explicitly empty. Omitting it would be a merge no-op, which
+    // is the difference between clearing a stale score and silently keeping one.
+    assert.ok(valueOf(SAM_CUSTOM_FIELDS.roleFit), 'Role Fit must be in every write');
+    assert.equal(valueOf(SAM_CUSTOM_FIELDS.roleFit).value, CLEAR);
+    assert.equal(valueOf(SAM_CUSTOM_FIELDS.coverage).value, 25,
+      'coverage is always a real number — it is what explains the empty one');
   });
 
   test('the document withholds the headline rather than caveating it', async () => {
@@ -1001,11 +1005,111 @@ describe('A thin read refuses to publish a score', () => {
     assert.ok(samFieldValues(s).map((v) => v.field).includes(SAM_CUSTOM_FIELDS.roleFit));
   });
 
-  test('a sweep with no cohort omits rank instead of inventing one', async () => {
+  test('a sweep with no cohort clears rank instead of inventing or keeping one', async () => {
     const s = sweep(5);
     assert.equal(s.pool, null);
-    assert.ok(!samFieldValues(s).map((v) => v.field).includes(SAM_CUSTOM_FIELDS.poolRank),
-      '"1 of 1, top 100%" is worse than saying nothing');
+    const rank = samFieldValues(s).find((v) => v.field === SAM_CUSTOM_FIELDS.poolRank);
+    assert.ok(rank, 'rank must be in the write so a stale rank cannot survive a sweep');
+    assert.equal(rank.value, CLEAR, '"1 of 1, top 100%" is worse than saying nothing');
     await assert.doesNotReject(renderSnapshotPdf(s), 'the PDF must not dereference a null pool');
+  });
+});
+
+describe('A re-score that drops below threshold clears what it can no longer assert', () => {
+  // customField.setValues merges. The danger is not the write we refuse to make — it is the
+  // one we made last sweep and never took back. These go through the store the way the API
+  // does, so a merge-vs-replace mistake shows up as a stale value rather than a passing unit.
+  let seq = 0;
+  const application = () => seedApplicant({
+    // A fresh hash per test, so one test's clear cannot make another's pass.
+    responseHash: `rescore-fixture-${seq += 1}`,
+    name: 'Jordan Avery',
+    email: 'jordan@example.com',
+    location: 'Austin, TX',
+    linkedin: null,
+    resume: { name: 'jordan_avery_resume.pdf', url: 'https://example.com/r.pdf' },
+    appliedAt: new Date(0).toISOString(),
+  }).applicationId;
+
+  const write = (applicationId, snapshot) => setCustomFieldValues(
+    applicationId,
+    samFieldValues(snapshot).map(({ field, value }) => ({
+      fieldId: CUSTOM_FIELDS.find((f) => f.title === field.name).id,
+      fieldValue: value,
+    })),
+  );
+
+  const readField = (applicationId, name) => {
+    const app = getApplication(applicationId);
+    return app.customFields.find((f) => f.title === name);
+  };
+
+  const rich = {
+    scoreIsPublishable: true, roleFit: 0.72, coverage: 0.9, capability: 8,
+    pool: { roleFitRank: 2, size: 41, topPercent: 5 },
+  };
+  const thin = {
+    scoreIsPublishable: false, roleFit: 1.0, coverage: 0.4, capability: 7, pool: null,
+  };
+
+  test('last sweep’s Role Fit does not survive a re-score that drops below threshold', () => {
+    const id = application();
+
+    write(id, rich);
+    assert.equal(readField(id, 'Sam Role Fit').value, 72, 'the first sweep scored normally');
+
+    write(id, thin);
+    const after = readField(id, 'Sam Role Fit');
+    assert.equal(after, undefined,
+      'a 72 left sitting in a filterable column, attached to a read that no longer supports '
+      + 'it and with nothing marking it as old, is worse than the number we refused to write');
+
+    assert.equal(readField(id, 'Sam Evidence Coverage').value, 40,
+      'coverage updates to the new, lower number — it is what explains the empty cell');
+  });
+
+  test('a stale pool rank does not survive a sweep that has no cohort', () => {
+    const id = application();
+    write(id, rich);
+    assert.match(readField(id, 'Sam Pool Rank').value, /2 of 41/);
+
+    write(id, thin);
+    assert.equal(readField(id, 'Sam Pool Rank'), undefined,
+      'ranked 2 of 41 must not persist through a sweep that could not rank anyone');
+  });
+
+  test('recovering above threshold writes the score back', () => {
+    const id = application();
+    write(id, thin);
+    assert.equal(readField(id, 'Sam Role Fit'), undefined);
+
+    write(id, rich);
+    assert.equal(readField(id, 'Sam Role Fit').value, 72,
+      'clearing must not be sticky — a fuller re-score restores the number');
+  });
+});
+
+describe('The coverage floor is inclusive at exactly 50%', () => {
+  // Pinning the boundary in a test rather than leaving it implied by >= in one expression.
+  // "Below 50%" in the spec means strictly below: 50.0% itself publishes.
+  test('exactly MIN_SCOREABLE_COVERAGE publishes', () => {
+    assert.equal(MIN_SCOREABLE_COVERAGE, 0.5, 'the floor the rest of this test assumes');
+    assert.equal(scoreIsPublishable(0.5), true, '50% is on the publishing side of the line');
+  });
+
+  test('a hair below does not publish', () => {
+    assert.equal(scoreIsPublishable(0.4999), false);
+  });
+
+  test('a hair above publishes', () => {
+    assert.equal(scoreIsPublishable(0.5001), true);
+  });
+
+  test('the boundary carries through to the Ashby write', () => {
+    const at = { scoreIsPublishable: scoreIsPublishable(0.5), roleFit: 0.8, coverage: 0.5, capability: 8, pool: null };
+    const below = { ...at, scoreIsPublishable: scoreIsPublishable(0.4999), coverage: 0.4999 };
+    const roleFitOf = (s) => samFieldValues(s).find((v) => v.field === SAM_CUSTOM_FIELDS.roleFit).value;
+    assert.equal(roleFitOf(at), 80, 'at exactly the floor the score is written');
+    assert.equal(roleFitOf(below), CLEAR, 'a hair below and it is cleared');
   });
 });
