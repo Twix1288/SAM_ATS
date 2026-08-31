@@ -18,6 +18,29 @@
  *      because the reader cannot check it — and an unverifiable quote is worse than no quote.
  */
 
+/**
+ * Below this share of the rubric, a Role Fit percentage stops being a score.
+ *
+ * roleFit is already coverage-denominated: it answers "of what we could observe, how much
+ * is met." That is honest prose and a dangerous number. A résumé-only sweep that can
+ * evidence one anchor out of six and finds it met produces **Role Fit 100% at 25%
+ * coverage** — and the 100 is what lands in Ashby's sortable field, at the top of the
+ * reviewer's list, with the 25 nowhere near it.
+ *
+ * Coverage-denominated scores are only comparable between candidates at similar coverage.
+ * The document can carry that caveat; a filterable integer cannot. So below the floor we
+ * publish the evidence and refuse the number, which is the same discipline the four-state
+ * model already applies to a single anchor, applied to the score as a whole.
+ *
+ * 0.5 because at half the rubric the observable subset is still a minority of the job —
+ * defensible as a signal, not as a ranking. Raise it if the résumé sweep turns out thinner
+ * than expected; it is one constant and every surface reads it.
+ */
+export const MIN_SCOREABLE_COVERAGE = 0.5;
+
+/** Whether a Role Fit number may be shown or written as a sortable value. */
+export const scoreIsPublishable = (coverage) => coverage >= MIN_SCOREABLE_COVERAGE;
+
 /** Anchor states. NOT_COLLECTED is excluded from the denominator — see coverage. */
 export const ANCHOR_STATE = {
   MET: 'MET',
@@ -147,7 +170,11 @@ export function snapshotFromEnginePayload(payload, ashby) {
 
     roleFit: payload.scores.roleFit,
     coverage: payload.scores.coverage,
-    band: payload.scores.band ?? bandFromRoleFit(payload.scores.roleFit),
+    // Gates every surface at once: the headline number, the Ashby field, the note.
+    scoreIsPublishable: scoreIsPublishable(payload.scores.coverage),
+    band: scoreIsPublishable(payload.scores.coverage)
+      ? (payload.scores.band ?? bandFromRoleFit(payload.scores.roleFit))
+      : 'Insufficient evidence',
     capability: payload.scores.capability,
     capabilityRaw: optional(payload.scores.capabilityRaw, payload.scores.capability),
     capabilitySignals: optional(payload.scores.capabilitySignals, { met: [], missing: [] }),

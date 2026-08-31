@@ -19,7 +19,10 @@ import { reconcileMerge, MERGE_OUTCOME } from '../sam-integration/delivery/merge
 import * as db from '../ashby-simulator/store.js';
 import { rubricForJob, UnknownJobError, registeredJobs } from '../sam-integration/services/rubrics.js';
 import { OPEN_QUESTIONS, HIGH_RISK } from '../scripts/questions.js';
-import { snapshotFromEnginePayload, validateEnginePayload } from '../sam-integration/ingest/enginePayload.js';
+import { snapshotFromEnginePayload, validateEnginePayload, MIN_SCOREABLE_COVERAGE } from '../sam-integration/ingest/enginePayload.js';
+import { samFieldValues } from '../sam-integration/endpoints/customField.setValue.js';
+import { SAM_CUSTOM_FIELDS } from '../shared/ashby-contract.js';
+import { extractPdfText } from '../sam-integration/ingest/pdf.js';
 import { renderSnapshotPdf } from '../sam-integration/render/snapshot.js';
 import { stitchSnapshot, stitchSnapshotWithResume, STITCH_MODE, toWinAnsi, MAX_BOUND_PAGES } from '../sam-integration/render/stitch.js';
 import { resumeFileForResponse, candidateFilesForResponse } from '../sam-integration/ingest/resume.js';
@@ -933,5 +936,76 @@ describe('The Snapshot can be built from the engine contract alone', () => {
       assert.ok(!('signals' in a), 'signals is how the engine decided, not what we render');
       assert.ok(!('evidence' in a), 'evidence is mapped to spans, never carried twice');
     }
+  });
+});
+
+describe('A thin read refuses to publish a score', () => {
+  // The production flow is a resume-only sweep, and the decision is that a resume cannot
+  // "ask" — so anchors it cannot evidence are NOT_COLLECTED and drop out of the denominator.
+  // That is honest per anchor and dangerous in aggregate: one observable anchor, met, is
+  // 100% of what was observable. This is the guard.
+  const base = JSON.parse(readFileSync('docs/sam-engine-payload.example.json', 'utf8'));
+  const ashby = {
+    candidate: {
+      name: 'Jordan Avery', primaryEmailAddress: { value: 'j@example.com' },
+      socialLinks: [], location: null, resumeFileHandle: { name: 'r.pdf' }, fileHandles: [],
+    },
+    job: { title: 'Sales Account Executive', company: 'Agree' },
+    pool: null,
+  };
+
+  const sweep = (observableCount) => {
+    const p = structuredClone(base);
+    p.inputs.read = ['resume'];
+    p.inputs.audio = [];
+    p.anchors = p.anchors.map((a, i) => (i < observableCount
+      ? { ...a, state: 'MET', reason: 'Evidenced on the resume.' }
+      : { ...a, state: 'NOT_COLLECTED', reason: 'A resume cannot evidence this.', evidence: [] }));
+    const total = p.anchors.reduce((n, a) => n + a.weight, 0);
+    p.scores.coverage = p.anchors.filter((a) => a.state !== 'NOT_COLLECTED')
+      .reduce((n, a) => n + a.weight, 0) / total;
+    p.scores.roleFit = 1.0;
+    return snapshotFromEnginePayload(p, ashby);
+  };
+
+  test('one observable anchor out of six does not become a perfect candidate', () => {
+    const s = sweep(1);
+    assert.ok(s.coverage < MIN_SCOREABLE_COVERAGE);
+    assert.equal(s.scoreIsPublishable, false);
+    assert.equal(s.band, 'Insufficient evidence');
+  });
+
+  test('the withheld score never reaches Ashby’s sortable field', () => {
+    const values = samFieldValues(sweep(1));
+    const ids = values.map((v) => v.field);
+    assert.ok(!ids.includes(SAM_CUSTOM_FIELDS.roleFit),
+      'a 100 here would put a one-anchor read at the top of the reviewer’s list');
+    assert.ok(ids.includes(SAM_CUSTOM_FIELDS.coverage),
+      'coverage is always written — it is the number that explains the empty one');
+  });
+
+  test('the document withholds the headline rather than caveating it', async () => {
+    const text = extractPdfText(await renderSnapshotPdf(sweep(1)));
+    assert.match(text, /Insufficient evidence/,
+      'the band has to say so where the percentage used to be');
+    assert.doesNotMatch(text, /100%/,
+      'a perfect-looking number from one observable anchor is the whole failure mode');
+    assert.match(text, /25% COVERAGE/, 'coverage still shows — it explains the withheld score');
+  });
+
+  test('above the floor the score publishes normally', () => {
+    const s = sweep(5);
+    assert.ok(s.coverage >= MIN_SCOREABLE_COVERAGE);
+    assert.equal(s.scoreIsPublishable, true);
+    assert.notEqual(s.band, 'Insufficient evidence');
+    assert.ok(samFieldValues(s).map((v) => v.field).includes(SAM_CUSTOM_FIELDS.roleFit));
+  });
+
+  test('a sweep with no cohort omits rank instead of inventing one', async () => {
+    const s = sweep(5);
+    assert.equal(s.pool, null);
+    assert.ok(!samFieldValues(s).map((v) => v.field).includes(SAM_CUSTOM_FIELDS.poolRank),
+      '"1 of 1, top 100%" is worse than saying nothing');
+    await assert.doesNotReject(renderSnapshotPdf(s), 'the PDF must not dereference a null pool');
   });
 });

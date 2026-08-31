@@ -40,7 +40,9 @@ const STATE_STYLE = {
 export async function renderSnapshotPdf(s) {
   const doc = await PDFDocument.create();
   doc.setTitle(`Sam Snapshot — ${s.candidate.name}`);
-  doc.setSubject(`${s.role.title} · Role Fit ${Math.round(s.roleFit * 100)}% at ${Math.round(s.coverage * 100)}% coverage`);
+  doc.setSubject(s.scoreIsPublishable === false
+    ? `${s.role.title} · not scored — only ${Math.round(s.coverage * 100)}% of the rubric was observable`
+    : `${s.role.title} · Role Fit ${Math.round(s.roleFit * 100)}% at ${Math.round(s.coverage * 100)}% coverage`);
   doc.setProducer('Sam');
 
   const reg = await doc.embedFont(StandardFonts.Helvetica);
@@ -89,9 +91,16 @@ export async function renderSnapshotPdf(s) {
   page.drawRectangle({ x: 0, y: PAGE[1] - 108, width: PAGE[0], height: 4, color: BRAND });
   page.drawText(s.candidate.name, { x: M, y: PAGE[1] - 46, size: 21, font: bold, color: hex(INK_RAMP[0]) });
   page.drawText(`Matched to ${s.role.title} · ${s.role.company}`, { x: M, y: PAGE[1] - 64, size: 9.5, font: reg, color: hex(INK_RAMP[300]) });
-  page.drawText(`Top ${s.pool.topPercent}% of pool · ${s.pool.size} applicants · scored from ${s.provenance}`, { x: M, y: PAGE[1] - 80, size: 8, font: reg, color: BRAND });
+  // A scheduled sweep scores one person at a time and has no cohort to rank them in.
+  // "Top 100% of pool · 1 applicant" is worse than saying nothing.
+  const standing = s.pool
+    ? `Top ${s.pool.topPercent}% of pool · ${s.pool.size} applicants · scored from ${s.provenance}`
+    : `Scored from ${s.provenance}`;
+  page.drawText(standing, { x: M, y: PAGE[1] - 80, size: 8, font: reg, color: BRAND });
 
-  const pctStr = `${Math.round(s.roleFit * 100)}%`;
+  // Below the coverage floor the number is withheld rather than shown with a caveat —
+  // the headline is the one thing every reader takes away, caveat or not.
+  const pctStr = s.scoreIsPublishable === false ? '—' : `${Math.round(s.roleFit * 100)}%`;
   const pw = bold.widthOfTextAtSize(pctStr, 30);
   page.drawText(pctStr, { x: PAGE[0] - M - pw, y: PAGE[1] - 50, size: 30, font: bold, color: hex(INK_RAMP[0]) });
   const lbl = 'ROLE FIT';
@@ -240,7 +249,9 @@ export async function renderSnapshotPdf(s) {
   for (const p of doc.getPages()) {
     p.drawLine({ start: { x: M, y: 40 }, end: { x: M + WIDTH, y: 40 }, thickness: 0.6, color: RULE });
     p.drawText(`Powered by Sam for ${s.role.company}`, { x: M, y: 28, size: 7.5, font: reg, color: SOFT });
-    const stamp = `Role Fit ${Math.round(s.roleFit * 100)}% at ${Math.round(s.coverage * 100)}% coverage · evidence-bound`;
+    const stamp = s.scoreIsPublishable === false
+      ? `Not scored · only ${Math.round(s.coverage * 100)}% of the rubric was observable · evidence-bound`
+      : `Role Fit ${Math.round(s.roleFit * 100)}% at ${Math.round(s.coverage * 100)}% coverage · evidence-bound`;
     p.drawText(stamp, { x: M + WIDTH - reg.widthOfTextAtSize(stamp, 7.5), y: 28, size: 7.5, font: reg, color: SOFT });
   }
 

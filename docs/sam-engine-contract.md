@@ -101,24 +101,43 @@ job title. The engine sends ids; we resolve them.
 
 ## Three things that change because it is a sweep
 
-### 1. Résumé-only breaks what NOT_COLLECTED means — decide this first
+### 1. Résumé-only reads report NOT_COLLECTED — decided, and it needs a guard
 
-The four-state model is the best idea in the Snapshot. `NOT_COLLECTED` is **excluded from the
-denominator**, which is what lets us say "65% at 65% coverage" instead of scoring someone
-against questions nobody asked.
+**Decision: a résumé cannot ask, so an anchor it cannot evidence is `NOT_COLLECTED`, not
+`NOT_MET`.** That is right per anchor — the candidate is not penalised for a question nobody
+put to them — and `NOT_COLLECTED` drops out of the denominator as designed.
 
-That distinction was *"we never asked"* versus *"we asked and the evidence is not there."*
-**With résumé-only input, nothing is ever asked.** So either:
+In aggregate it is dangerous, and the danger is not theoretical. A sweep where one anchor of
+six is observable and met produces:
 
-- every unevidenced anchor becomes `NOT_COLLECTED` → coverage collapses toward zero and
-  `roleFit` is computed over a denominator of one or two anchors, or
-- everything becomes `NOT_MET` → we lose the honesty that made the score defensible.
+```
+Role Fit 100%   at 25% coverage
+```
 
-Neither is right. The likely answer is that the résumé is a *collection instrument with
-limited range*: an anchor a résumé could reasonably evidence and does not is `NOT_MET`; an
-anchor no résumé could ever evidence — motivation, judgement under pressure — is
-`NOT_COLLECTED`. **That is a rubric-authoring decision and it needs to be made explicitly**,
-because it sets every number on the document.
+The 100 is what lands in Ashby's sortable, filterable field. The 25 does not go with it. A
+reviewer filtering `Sam Role Fit ≥ 65` gets a one-anchor read at the top of their list, and
+nothing on that screen says why.
+
+So the score is gated on coverage:
+
+| | Below 50% coverage | At or above |
+|---|---|---|
+| Band | `Insufficient evidence` | normal band |
+| PDF headline | `—` | the percentage |
+| Ashby Role Fit field | **not written** | written |
+| Note headline | "Not scored — only N% of the rubric was observable" | normal |
+| Coverage field | **always written** | always written |
+
+Coverage is always written because it is the number that explains the empty one.
+
+`MIN_SCOREABLE_COVERAGE` is one constant in `enginePayload.js` and every surface reads it.
+Raise it if the résumé sweep turns out thinner than expected. The reasoning is that a
+coverage-denominated score is only comparable between candidates at similar coverage — a
+document can carry that caveat, a filterable integer cannot.
+
+**What this means for the engine:** send `coverage` honestly and do not compensate. If a
+résumé sweep genuinely only evidences a quarter of the rubric, say so and let the gate do its
+job. The failure mode we are protecting against is a confident number, not a low one.
 
 ### 2. No webhook means no delivery id
 
@@ -167,7 +186,8 @@ we currently have no way to read them back.
 
 ## Open questions
 
-1. **NOT_COLLECTED under résumé-only** — the rubric decision above. Blocks everything else.
+1. ~~NOT_COLLECTED under résumé-only~~ — **decided**: résumé-only reads report
+   `NOT_COLLECTED`, and the score is gated below 50% coverage. See above.
 2. **Where does consent live** — application form (unreadable) or Questionnaire survey
    (readable via `surveySubmission.list`)? Worth deciding before the form is configured.
 3. **Re-scoring on rubric change** — the rubric is expanding. When v2 ships, does a candidate
@@ -176,4 +196,6 @@ we currently have no way to read them back.
    appends to the record.
 4. **Who owns `netRead`** — the engine sends prose today. If the Snapshot's layout should
    constrain its length, that constraint belongs in the contract as a character budget.
-5. **Rank** — suppress under a threshold, or have the engine return a percentile?
+5. **Rank** — currently omitted entirely when there is no cohort, because "1 of 1, top 100%"
+   is worse than saying nothing. Worth deciding whether the engine should maintain a per-job
+   distribution and return a percentile instead.

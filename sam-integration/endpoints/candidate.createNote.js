@@ -33,9 +33,20 @@ const STATE_WORD = {
 /**
  * The one-line headline. Role Fit is never written without its coverage — a bare
  * percentage implies the whole rubric was observable, and here it was not.
+ *
+ * Below the coverage floor it is not written at all. The note is the surface a reviewer
+ * reads without clicking, so it is the last place to put a number the document itself
+ * refuses to print.
  */
-const headline = (s) =>
-  `Role Fit ${pct(s.roleFit)} at ${pct(s.coverage)} evidence coverage · Capability ${s.capability}/10 · rank ${s.pool.roleFitRank} of ${s.pool.size}`;
+const headline = (s) => {
+  const rank = s.pool ? ` · rank ${s.pool.roleFitRank} of ${s.pool.size}` : '';
+  if (s.scoreIsPublishable === false) {
+    return `Not scored — only ${pct(s.coverage)} of the rubric was observable from the `
+      + `inputs available · Capability ${s.capability}/10${rank}`;
+  }
+  return `Role Fit ${pct(s.roleFit)} at ${pct(s.coverage)} evidence coverage · `
+    + `Capability ${s.capability}/10${rank}`;
+};
 
 /** Plain-text note. The floor: what survives if HTML is rejected entirely. */
 /**
