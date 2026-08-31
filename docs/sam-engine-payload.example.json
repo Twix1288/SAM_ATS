@@ -1,0 +1,224 @@
+{
+  "schemaVersion": "1.0",
+  "scoreId": "sam_score_jordan_avery_sales_ae_v1",
+  "scoredAt": "2026-08-25T12:00:00.000Z",
+  "engine": {
+    "version": "sam-engine@0.0.0-example",
+    "rubricId": "sales-account-executive",
+    "rubricVersion": "1",
+    "rubricSource": "Sales Account Executive.pdf"
+  },
+  "subject": {
+    "ashbyCandidateId": "00000000-0000-4000-8000-000000000001",
+    "ashbyApplicationId": "00000000-0000-4000-8000-000000000002",
+    "ashbyJobId": "00000000-0000-4000-8000-000000000003"
+  },
+  "inputs": {
+    "read": [
+      "resume",
+      "voice responses"
+    ],
+    "resume": {
+      "fileHandleId": "file_example",
+      "filename": "jordan_avery_resume.pdf"
+    },
+    "jobDescription": {
+      "storedAt": "2026-08-20T09:00:00Z",
+      "version": "1"
+    },
+    "answeredCount": 5,
+    "audio": [
+      {
+        "id": "Q1",
+        "url": "https://cdn.voiceform.com/app/ede5c608-db0e-473f-9753-23bb512a9e82/audio/0A9ILYNfnYCHfAfKyQ03V4ooOf5EEoduDUJa7NST.mp3"
+      },
+      {
+        "id": "Q2",
+        "url": "https://cdn.voiceform.com/app/ede5c608-db0e-473f-9753-23bb512a9e82/audio/Naricyn53okJ8WBxGEsvyCzR62mLxFEKKYOQUL73.mp3"
+      },
+      {
+        "id": "Q3",
+        "url": "https://cdn.voiceform.com/app/ede5c608-db0e-473f-9753-23bb512a9e82/audio/DV57seKJ8ebnyFbXDSNlwF4IFkiz6h8S6ZJdb8gV.mp3"
+      },
+      {
+        "id": "Q5",
+        "url": "https://cdn.voiceform.com/app/ede5c608-db0e-473f-9753-23bb512a9e82/audio/KzsBCdSOQmZFV65GnpiXEXD3SYO3CP4834oF3QHt.mp3"
+      },
+      {
+        "id": "Q6",
+        "url": "https://cdn.voiceform.com/app/ede5c608-db0e-473f-9753-23bb512a9e82/audio/LjWkuhF8HujaO3zS1tdLpf9mTNBuMEWNRJFajuuZ.mp3"
+      }
+    ]
+  },
+  "scores": {
+    "roleFit": 0.65,
+    "coverage": 0.65,
+    "band": "Moderate — verify live",
+    "capability": 9,
+    "capabilityRaw": 8.67,
+    "capabilitySignals": {
+      "met": [
+        "Works from an explicit process",
+        "Names the tools they operate",
+        "Sells to named executive buyers",
+        "Handles objections at root cause",
+        "States outcomes, not just activity"
+      ],
+      "missing": [
+        "Quantifies results"
+      ]
+    }
+  },
+  "anchors": [
+    {
+      "id": "A4",
+      "label": "$5M+ annualized invoice volume",
+      "detail": "Consistently carried and hit $5M+ in Annualized Invoice Volume; closed multiple six-figure AIV deals.",
+      "weight": 0.25,
+      "state": "NOT_COLLECTED",
+      "reason": "Question Q4 collected no response.",
+      "evidence": []
+    },
+    {
+      "id": "A2",
+      "label": "Self-sourced outbound pipeline",
+      "detail": "Generates pipeline through outbound and strategic prospecting rather than waiting for it.",
+      "weight": 0.2,
+      "state": "MET",
+      "reason": "Evidenced by sequencedProcess, namedTool, statedOutcome.",
+      "evidence": [
+        {
+          "quote": "I run outbound in three passes — fit, trigger, then a specific reason to talk now — and I keep the firs",
+          "source": "interview:Q3",
+          "locator": null
+        },
+        {
+          "quote": "Last quarter I closed eleven deals against a quota of nine, with an average cycle of forty-one days. …",
+          "source": "interview:Q5",
+          "locator": null
+        },
+        {
+          "quote": "I brought finance in at the second call rather than the last, because the objection is always procurement, not product. …",
+          "source": "interview:Q3",
+          "locator": null
+        },
+        {
+          "quote": "When a deal stalls I ask who else has to sign, and I have lost enough deals to know that answer is never one person. …",
+          "source": "interview:Q5",
+          "locator": null
+        }
+      ]
+    },
+    {
+      "id": "A1",
+      "label": "Full-cycle ownership through close",
+      "detail": "Owns the full sales cycle from outbound prospecting through signed contract and expansion.",
+      "weight": 0.15,
+      "state": "PARTIAL",
+      "reason": "Partial: found fullCycle; missing statedOutcome.",
+      "evidence": [
+        {
+          "quote": "I run outbound in three passes — fit, trigger, then a specific reason to talk now — and I keep the first touch under sixty words. …",
+          "source": "interview:Q1",
+          "locator": null
+        },
+        {
+          "quote": "Last quarter I closed eleven deals against a quota of nine, with an average cycle of forty-one days. …",
+          "source": "interview:Q2",
+          "locator": null
+        }
+      ]
+    },
+    {
+      "id": "A3",
+      "label": "Finance and executive stakeholders",
+      "detail": "Runs structured discovery and multi-stakeholder conversations with Finance and executive buyers.",
+      "weight": 0.15,
+      "state": "MET",
+      "reason": "Evidenced by namedCounterparty, objectionHandling.",
+      "evidence": [
+        {
+          "quote": "I run outbound in three passes — fit, trigger, then a specific reason to talk now — and I keep the first touch under sixty words. …",
+          "source": "interview:Q2",
+          "locator": null
+        },
+        {
+          "quote": "Last quarter I closed eleven deals against a quota of nine, with an average cycle of forty-one days. …",
+          "source": "interview:Q6",
+          "locator": null
+        },
+        {
+          "quote": "I brought finance in at the second call rather than the last, because the objection is always procurement, not product. …",
+          "source": "interview:Q2",
+          "locator": null
+        },
+        {
+          "quote": "When a deal stalls I ask who else has to sign, and I have lost enough deals to know that answer is never one person. …",
+          "source": "interview:Q6",
+          "locator": null
+        }
+      ]
+    },
+    {
+      "id": "A5",
+      "label": "Fintech and payments domain",
+      "detail": "Background at Brex, Ramp, Plaid, Mercury, Flex or similar; sells payments/invoicing products.",
+      "weight": 0.15,
+      "state": "NOT_MET",
+      "reason": "Answered, but no supporting evidence found (looked for fintechEmployer, paymentsDomain).",
+      "evidence": []
+    },
+    {
+      "id": "A6",
+      "label": "Competitive displacement",
+      "detail": "Demonstrated ability to win competitive deals and displace incumbents.",
+      "weight": 0.1,
+      "state": "NOT_COLLECTED",
+      "reason": "No survey question maps to this requirement.",
+      "evidence": []
+    }
+  ],
+  "narrative": {
+    "netRead": "Jordan evidences self-sourced outbound pipeline and finance and executive stakeholders directly in their responses. They were asked about fintech and payments domain and the evidence is not there. 2 anchors — $5M+ annualized invoice volume and competitive displacement — were never asked by this survey, so they are excluded from the score rather than counted against them. Score reflects 65% of the rubric.",
+    "recommendedNextStep": "Move to the AI interview: the survey never captured $5M+ annualized invoice volume or competitive displacement, and fintech and payments domain is unevidenced.",
+    "caveats": [
+      "No quantified results anywhere in the responses."
+    ],
+    "gapsToInvestigate": null
+  },
+  "profile": {
+    "careerHistory": {
+      "roles": [
+        {
+          "title": "Account Executive",
+          "company": "Northwind Software",
+          "start": "2023-04",
+          "end": "Present"
+        },
+        {
+          "title": "Sales Development Representative",
+          "company": "Latimer Systems",
+          "start": "2021-08",
+          "end": "2023-03"
+        }
+      ],
+      "source": "jordan_avery_resume.pdf",
+      "note": null
+    },
+    "additionalSkills": [
+      "tech-enabled startups",
+      "sales cycle ownership",
+      "rapid adaptation",
+      "new business development",
+      "marketing strategy",
+      "successful deal closure",
+      "handling objections",
+      "customer engagement",
+      "building value",
+      "effective sales strategy"
+    ],
+    "experienceMatch": null,
+    "responsibilityMatch": null,
+    "roleLevelFit": null
+  }
+}

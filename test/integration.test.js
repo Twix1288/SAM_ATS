@@ -19,6 +19,7 @@ import { reconcileMerge, MERGE_OUTCOME } from '../sam-integration/delivery/merge
 import * as db from '../ashby-simulator/store.js';
 import { rubricForJob, UnknownJobError, registeredJobs } from '../sam-integration/services/rubrics.js';
 import { OPEN_QUESTIONS, HIGH_RISK } from '../scripts/questions.js';
+import { snapshotFromEnginePayload, validateEnginePayload } from '../sam-integration/ingest/enginePayload.js';
 import { renderSnapshotPdf } from '../sam-integration/render/snapshot.js';
 import { stitchSnapshot, stitchSnapshotWithResume, STITCH_MODE, toWinAnsi, MAX_BOUND_PAGES } from '../sam-integration/render/stitch.js';
 import { resumeFileForResponse, candidateFilesForResponse } from '../sam-integration/ingest/resume.js';
@@ -841,6 +842,96 @@ describe('The questions are ones only Ashby can answer', () => {
     for (const q of OPEN_QUESTIONS) {
       assert.doesNotMatch(q.question, /uploadResume|which endpoint should we use/i,
         `"${q.topic}" was settled by the documentation and should have been removed`);
+    }
+  });
+});
+
+describe('The Snapshot can be built from the engine contract alone', () => {
+  // The contract is only worth writing down if it is sufficient. These tests build the
+  // Snapshot from the payload plus Ashby and nothing else — no survey file, no scorer.
+  const payload = JSON.parse(readFileSync('docs/sam-engine-payload.example.json', 'utf8'));
+  const ashby = {
+    candidate: {
+      name: 'Aditya Alapati',
+      primaryEmailAddress: { value: 'candidate@example.com' },
+      socialLinks: [{ type: 'LinkedIn', url: 'https://linkedin.com/in/example' }],
+      location: { locationSummary: 'Boston, Massachusetts' },
+      resumeFileHandle: { name: 'resume.pdf' },
+      fileHandles: [],
+    },
+    job: { title: 'Sales Account Executive', company: 'Agree' },
+    pool: { size: 41, roleFitRank: 2, capabilityRank: 5, roleFitPercentile: 95, topPercent: 5 },
+  };
+
+  test('the example payload satisfies its own contract', () => {
+    assert.doesNotThrow(() => validateEnginePayload(payload));
+  });
+
+  test('a full Snapshot PDF renders from the payload with no survey data in reach', async () => {
+    const snapshot = snapshotFromEnginePayload(payload, ashby);
+    const pdf = await renderSnapshotPdf(snapshot);
+    assert.ok(pdf.length > 5000, 'a real multi-section document, not a stub');
+    for (const field of ['netRead', 'recommendedNextStep', 'anchors', 'coverageGaps',
+      'evidenceQuotes', 'careerHistory', 'additionalSkills', 'experienceMatch']) {
+      assert.ok(snapshot[field], `${field} could not be filled from the contract`);
+    }
+  });
+
+  test('a missing required field names its own path rather than rendering a hole', () => {
+    const broken = structuredClone(payload);
+    delete broken.anchors[0].reason;
+    assert.throws(() => snapshotFromEnginePayload(broken, ashby), (err) => {
+      assert.equal(err.name, 'ContractError');
+      assert.match(err.message, /anchors\[0\]\.reason/);
+      return true;
+    });
+  });
+
+  test('optional-null prints an honest line instead of guessing', () => {
+    const snapshot = snapshotFromEnginePayload(payload, ashby);
+    // The example sends roleLevelFit: null — seniority is not derivable from a resume parse.
+    assert.equal(snapshot.roleLevelFit.band, 'Not determined');
+    assert.match(snapshot.roleLevelFit.line, /did not assert/i);
+  });
+
+  test('provenance is whatever the engine says it opened, never an assumption', () => {
+    const resumeOnly = structuredClone(payload);
+    resumeOnly.inputs.read = ['resume'];
+    resumeOnly.inputs.audio = [];
+    const snapshot = snapshotFromEnginePayload(resumeOnly, ashby);
+    assert.equal(snapshot.provenance, 'resume');
+    assert.equal(snapshot.hasResume, true);
+    assert.equal(snapshot.audioUrls.length, 0,
+      'a resume-only sweep has no recordings to link');
+  });
+
+  test('claiming resume-only while shipping recordings is refused', () => {
+    // The scheduled sweep is resume-only. If the engine ever sends audio alongside that
+    // claim, the Snapshot would invite a reviewer to listen to evidence the score never
+    // used — so it fails here rather than printing it.
+    const lying = structuredClone(payload);
+    lying.inputs.read = ['resume'];
+    assert.throws(() => snapshotFromEnginePayload(lying, ashby), (err) => {
+      assert.equal(err.name, 'ContractError');
+      assert.match(err.message, /inputs\.audio/);
+      return true;
+    });
+  });
+
+  test('a swapped-field career row is dropped rather than printed on someone’s record', () => {
+    const dirty = structuredClone(payload);
+    dirty.profile.careerHistory.roles.push({ title: 'X', company: 'closes at 40% rates' });
+    const snapshot = snapshotFromEnginePayload(dirty, ashby);
+    assert.ok(!snapshot.careerHistory.roles.some((r) => /rates/.test(r.company)),
+      'a garbled parse row is worse on a person’s record than an absent one');
+  });
+
+  test('the anchors the renderer sees carry no scoring internals', () => {
+    const snapshot = snapshotFromEnginePayload(payload, ashby);
+    for (const a of snapshot.anchors) {
+      assert.ok(!('evidencedBy' in a), 'evidencedBy is a rubric input, not a result');
+      assert.ok(!('signals' in a), 'signals is how the engine decided, not what we render');
+      assert.ok(!('evidence' in a), 'evidence is mapped to spans, never carried twice');
     }
   });
 });
