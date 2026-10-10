@@ -241,10 +241,15 @@ export async function deliverSnapshot(ctx) {
     // Recorded only once the note is actually ON the record. Writing it before the post
     // would mark questions as asked that nobody can see, and the next pass would move on to
     // the following three — losing them silently.
-    if (asking.length) recordAsked({ candidateId, jobId: conversationJobId, ref, questions: asking });
+    // Not when the note was deduplicated: the questions on the record are the ones the
+    // earlier note carried, and recording these would make the next pass skip past them.
+    if (asking.length && !note.deduplicated) {
+      recordAsked({ candidateId, jobId: conversationJobId, ref, questions: asking });
+    }
     record('annotate', true, `${note.format} · ${note.body.length} chars`
       + `${attachment ? ' · references the attachment' : ' · no attachment to reference'}`
-      + `${asking.length ? ` · asking ${asking.length} open question(s)` : ''}`);
+      + `${note.deduplicated ? ' · already on the record'
+        : asking.length ? ` · asking ${asking.length} open question(s)` : ''}`);
   } catch (err) {
     record('annotate', false, err.message);
   }

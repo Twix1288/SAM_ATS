@@ -2282,6 +2282,12 @@ describe('job description resolution', () => {
     assert.match(src, /questions: asking/, 'and send the questions it recorded as asked');
     assert.match(src, /recordAsked\(/,
       'and write them down, so a reply can be resolved against what was actually shown');
+
+    // But only when the note actually posted. Deduplication works now, so a retry can
+    // return the EARLIER note — and recording this set against that note would make the
+    // next pass skip to the following three questions, losing the ones on the record.
+    assert.match(src, /!note\.deduplicated/,
+      'questions nobody was shown must not be recorded as asked');
   });
 
   test('a reply cannot answer an item the note never showed', () => {

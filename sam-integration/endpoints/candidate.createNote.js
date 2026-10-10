@@ -398,23 +398,36 @@ export async function createSnapshotNote({
 
   if (format === 'html') {
     try {
-      await post(ENDPOINTS.createNote, {
+      // `verify` returns the EXISTING note when a retry finds the first attempt landed, so
+      // the result tells the caller whether anything was actually posted. That matters now
+      // that deduplication works: the pipeline records which questions were asked, and
+      // recording a set nobody was shown would make the next pass move on to the following
+      // three and lose them.
+      const res = await post(ENDPOINTS.createNote, {
         candidateId,
         note: { type: 'text/html', value: html },
         sendNotifications: false,
       }, { idempotencyKey: `${deliveryId}:note`, verify: alreadyPosted(html) });
-      return { format: 'text/html', body: html, plain, referencesAttachment: Boolean(attachment) };
+      return {
+        format: 'text/html', body: html, plain,
+        referencesAttachment: Boolean(attachment),
+        deduplicated: res?.deduplicated === true,
+      };
     } catch (err) {
       if (!(err?.status >= 400 && err.status < 500)) throw err;
     }
   }
 
-  await post(ENDPOINTS.createNote, {
+  const res = await post(ENDPOINTS.createNote, {
     candidateId,
     note: { type: 'text/plain', value: plain },
     sendNotifications: false,
   }, { idempotencyKey: `${deliveryId}:note`, verify: alreadyPosted(plain) });
-  return { format: 'text/plain', body: plain, plain, referencesAttachment: Boolean(attachment) };
+  return {
+    format: 'text/plain', body: plain, plain,
+    referencesAttachment: Boolean(attachment),
+    deduplicated: res?.deduplicated === true,
+  };
 }
 
 /**
