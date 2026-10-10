@@ -6,13 +6,18 @@
   "description": "Ashby <-> Sam integration proof of concept",
   "scripts": {
     "ashby": "node ashby-simulator/mock_ashby_api.js",
-    "sam": "ASHBY_API_URL=http://localhost:3001 node sam-integration/server.js",
+    "serve": "ASHBY_API_URL=http://localhost:3001 node sam-integration/server.js",
+    "sam": "node --env-file-if-exists=.env scripts/sam-run.js",
     "trigger": "node ashby-simulator/trigger_application.js",
     "canvas": "node scripts/build-canvas.js ashby-simulator/output/canvas.html",
     "test": "node --test --test-skip-pattern=\"live-ashby\" \"test/*.test.js\"",
     "package": "bash scripts/package.sh",
     "preflight": "bash scripts/preflight.sh",
-    "test:live": "node --test test/live-ashby.test.js"
+    "test:live": "node --test test/live-ashby.test.js",
+    "verify:live": "node scripts/verify-live.js",
+    "jobs": "node scripts/jobs.js",
+    "sweep": "node scripts/sweep-once.js",
+    "followup": "node --env-file-if-exists=.env scripts/sam-followup.js"
   },
   "dependencies": {
     "pdf-lib": "^1.17.1"

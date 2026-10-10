@@ -31,7 +31,7 @@ function anchorRow(a) {
           <span class="state" style="color:${c.fg};background:${c.bg}">${STATE_LABEL[a.state]}</span>
         </div>
         <p class="reason">${esc(a.reason)}</p>
-        ${a.spans?.length ? `<blockquote>${esc(a.spans[0].quote)}<cite>column ${esc(a.spans[0].column)}</cite></blockquote>` : ''}
+        ${a.spans?.length ? `<blockquote>${esc(a.spans[0].quote)}<cite>${esc(a.spans[0].column)}</cite></blockquote>` : ''}
       </div>
     </li>`;
 }

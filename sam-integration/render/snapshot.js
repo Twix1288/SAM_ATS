@@ -5,8 +5,9 @@
  * the hosted page and the mockup screens cannot drift apart. The brief fixes the
  * palette at teal 4EC8C2 on black 0D0D0D.
  */
-import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
+import { PDFDocument, StandardFonts, rgb, PDFName, PDFString } from 'pdf-lib';
 import { SAM, TEAL, INK as INK_RAMP, STATE_COLOR, toRgb } from '../../shared/brand.js';
+import { toWinAnsi } from './stitch.js';
 
 const hex = (h) => rgb(...toRgb(h));
 
@@ -15,6 +16,7 @@ const SOFT = hex(INK_RAMP[500]);
 const ACCENT = hex(TEAL.deep);      // teal darkened for body-text contrast
 const BRAND = hex(SAM.teal);        // the brand teal itself, for fills and rules
 const MET = hex(STATE_COLOR.MET.fg);
+const MET_EQ = hex(STATE_COLOR.MET_EQUIVALENT.fg);
 const MISS = hex(STATE_COLOR.NOT_MET.fg);
 const UNCOLL = hex(STATE_COLOR.NOT_COLLECTED.fg);
 const PART = hex(STATE_COLOR.PARTIAL.fg);
@@ -30,19 +32,94 @@ const bandColor = (band) => ({
   'Not asked': UNCOLL, 'Not determined': UNCOLL, 'Not assessed': SOFT,
 }[band] ?? SOFT);
 
+/**
+ * The denominator line, from whatever the payload actually carries.
+ *
+ * Sam sends no coverage figure, and `Math.round(null * 100)` is 0 — so the document rendered
+ * "0% COVERAGE" beside a 65% score, and "at 0% coverage" in the footer of every page. Not a
+ * missing number: an actively wrong one, on a PDF that gets downloaded, emailed and printed,
+ * and which cannot be corrected once it is attached to a candidate.
+ *
+ * Where coverage exists it is still the better denominator and is still used. Where it does
+ * not, the anchor count says the same thing with a fact.
+ */
+const denominator = (s) => {
+  if (Number.isFinite(s.coverage)) return `${Math.round(s.coverage * 100)}% COVERAGE`;
+  const met = (s.anchorSummary?.met ?? 0) + (s.anchorSummary?.metEquivalent ?? 0);
+  return s.anchorSummary?.total ? `${met} OF ${s.anchorSummary.total} ANCHORS` : '';
+};
+
+/** Same decision, lower case, for the running footer. */
+const denominatorLine = (s) => {
+  if (Number.isFinite(s.coverage)) return `at ${Math.round(s.coverage * 100)}% coverage`;
+  const met = (s.anchorSummary?.met ?? 0) + (s.anchorSummary?.metEquivalent ?? 0);
+  return s.anchorSummary?.total ? `· ${met} of ${s.anchorSummary.total} anchors met` : '';
+};
+
 const STATE_STYLE = {
   MET: { color: MET, label: 'MET' },
+  // Met, but by transfer from adjacent experience. Same colour family as MET because it is a
+  // pass; its own label because the reviewer should know an inference was made.
+  MET_EQUIVALENT: { color: MET_EQ, label: 'MET · EQUIVALENT' },
   PARTIAL: { color: PART, label: 'PARTIAL' },
   NOT_MET: { color: MISS, label: 'NOT MET' },
   NOT_COLLECTED: { color: UNCOLL, label: 'NOT COLLECTED' },
 };
 
-export async function renderSnapshotPdf(s) {
+/**
+ * An unknown state must never reach the page.
+ *
+ * `STATE_STYLE[a.state]` returning undefined crashed the renderer mid-document — after the
+ * engine had been paid and before anything reached Ashby. A state we do not recognise is a
+ * contract problem, and the honest render is a neutral stripe saying so, not a stack trace
+ * that loses the whole delivery.
+ */
+const styleFor = (state) => STATE_STYLE[state] ?? { color: SOFT, label: String(state ?? 'UNKNOWN').toUpperCase() };
+
+/**
+ * Every string in the view model, reduced to what the PDF's fonts can actually draw.
+ *
+ * pdf-lib's standard fonts are WinAnsi. `drawText` THROWS on anything outside it — so a
+ * candidate named 陈伟 did not get a worse-looking Snapshot, they got no Snapshot at all:
+ * the render threw before the first Ashby write, the whole delivery failed, and the sweep
+ * recorded it as an error with no indication that a name was the cause.
+ *
+ * Latin-1 names were never the problem — José, Zoë and María already round-trip, and
+ * toWinAnsi transliterates the rest of the Latin range. This is about the scripts it
+ * cannot represent at all: CJK, Cyrillic, Arabic, Greek. Embedding a Unicode font would
+ * render them properly and costs a font file plus fontkit, which the brief rules out.
+ *
+ * So: sanitise once, here, over the WHOLE model rather than at fifteen drawText calls —
+ * a field added later is covered without anyone remembering to wrap it.
+ */
+const renderable = (value) => {
+  if (typeof value === 'string') return toWinAnsi(value);
+  if (Array.isArray(value)) return value.map(renderable);
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, renderable(v)]));
+  }
+  return value;
+};
+
+export async function renderSnapshotPdf(input) {
+  const s = renderable(input);
+
+  // A name written entirely in an unrepresentable script sanitises to nothing, and an
+  // empty header is the one outcome worse than a crash — the document would look like it
+  // is about nobody. Say plainly that the name could not be drawn, and keep the record
+  // identifiable by the address, which is Latin in practice.
+  if (!s.candidate.name.trim() && String(input.candidate?.name ?? '').trim()) {
+    s.candidate.name = s.candidate.email || 'Name not renderable in this document';
+    s.caveats = [...(s.caveats ?? []),
+      'This candidate’s name is written in a script this document cannot typeset. '
+      + 'Their Ashby record carries it correctly.'];
+  }
+
   const doc = await PDFDocument.create();
   doc.setTitle(`Sam Snapshot — ${s.candidate.name}`);
   doc.setSubject(s.scoreIsPublishable === false
-    ? `${s.role.title} · not scored — only ${Math.round(s.coverage * 100)}% of the rubric was observable`
-    : `${s.role.title} · Role Fit ${Math.round(s.roleFit * 100)}% at ${Math.round(s.coverage * 100)}% coverage`);
+    ? `${s.role.title} · not scored — the evidence does not support a match percentage`
+    : `${s.role.title} · Role Fit ${Math.round(s.roleFit * 100)}% ${denominatorLine(s)}`.trim());
   doc.setProducer('Sam');
 
   const reg = await doc.embedFont(StandardFonts.Helvetica);
@@ -90,7 +167,7 @@ export async function renderSnapshotPdf(s) {
   page.drawRectangle({ x: 0, y: PAGE[1] - 104, width: PAGE[0], height: 104, color: INK });
   page.drawRectangle({ x: 0, y: PAGE[1] - 108, width: PAGE[0], height: 4, color: BRAND });
   page.drawText(s.candidate.name, { x: M, y: PAGE[1] - 46, size: 21, font: bold, color: hex(INK_RAMP[0]) });
-  page.drawText(`Matched to ${s.role.title} · ${s.role.company}`, { x: M, y: PAGE[1] - 64, size: 9.5, font: reg, color: hex(INK_RAMP[300]) });
+  page.drawText([s.role.title, s.role.company].filter(Boolean).join(" · ").replace(/^/, "Matched to "), { x: M, y: PAGE[1] - 64, size: 9.5, font: reg, color: hex(INK_RAMP[300]) });
   // A scheduled sweep scores one person at a time and has no cohort to rank them in.
   // "Top 100% of pool · 1 applicant" is worse than saying nothing.
   const standing = s.pool
@@ -105,7 +182,7 @@ export async function renderSnapshotPdf(s) {
   page.drawText(pctStr, { x: PAGE[0] - M - pw, y: PAGE[1] - 50, size: 30, font: bold, color: hex(INK_RAMP[0]) });
   const lbl = 'ROLE FIT';
   page.drawText(lbl, { x: PAGE[0] - M - reg.widthOfTextAtSize(lbl, 7), y: PAGE[1] - 62, size: 7, font: reg, color: hex(INK_RAMP[300]) });
-  const cov = `${Math.round(s.coverage * 100)}% COVERAGE`;
+  const cov = denominator(s);
   page.drawText(cov, { x: PAGE[0] - M - reg.widthOfTextAtSize(cov, 7), y: PAGE[1] - 74, size: 7, font: bold, color: hex(STATE_COLOR.NOT_COLLECTED.bg) });
   const bandW = reg.widthOfTextAtSize(s.band, 8);
   page.drawText(s.band, { x: PAGE[0] - M - bandW, y: PAGE[1] - 88, size: 8, font: bold, color: BRAND });
@@ -159,7 +236,10 @@ export async function renderSnapshotPdf(s) {
   // ── scores ──────────────────────────────────────────────────
   rule();
   text(`CAPABILITY ${s.capability}/10`, { size: 9, font: bold, color: INK });
-  text(`ANCHORS ${s.anchorSummary.met} MET · ${s.anchorSummary.observable} OF ${s.anchorSummary.total} OBSERVABLE`, { x: M + 150, size: 9, font: bold, color: INK });
+  // Both kinds of pass count: a requirement met by equivalence is still met, and showing
+  // "2 MET" beside five green stripes reads as an error in the document.
+  const passed = (s.anchorSummary.met ?? 0) + (s.anchorSummary.metEquivalent ?? 0);
+  text(`ANCHORS ${passed} MET OF ${s.anchorSummary.total}`, { x: M + 150, size: 9, font: bold, color: INK });
   y -= 14;
   para(`How they work: ${s.capabilitySignals.met.join(' · ')}.`, { size: 8.5 });
   if (s.capabilitySignals.missing.length) para(`Not evidenced: ${s.capabilitySignals.missing.join(' · ')}.`, { size: 8.5, font: oblq });
@@ -167,7 +247,7 @@ export async function renderSnapshotPdf(s) {
   // ── role anchors ────────────────────────────────────────────
   heading('Role anchors');
   for (const a of s.roleAnchors) {
-    const st = STATE_STYLE[a.state];
+    const st = styleFor(a.state);
     room(30);
     page.drawRectangle({ x: M, y: y - 2, width: 3, height: 11, color: st.color });
     text(a.label, { x: M + 10, size: 9.5, font: bold, color: INK });
@@ -183,7 +263,7 @@ export async function renderSnapshotPdf(s) {
     heading('Evidence');
     for (const q of s.evidenceQuotes) {
       room(34);
-      text(`${q.anchor}  ·  column ${q.column}`, { size: 7.5, font: bold, color: SOFT }); y -= 11;
+      text(`${q.anchor}  ·  ${q.column}`, { size: 7.5, font: bold, color: SOFT }); y -= 11;
       para(`"${q.quote}"`, { size: 8.5, font: oblq, x: M + 8, width: WIDTH - 16, lead: 11 });
       y -= 4;
     }
@@ -246,12 +326,30 @@ export async function renderSnapshotPdf(s) {
   }
 
   // ── footer on every page ────────────────────────────────────
+  //
+  // The link goes on EVERY page, not just the first. This document is downloaded, emailed
+  // and printed — it leaves Ashby routinely — and a reader holding page 3 has no way back
+  // to the grading it came from unless the page they are holding carries it.
   for (const p of doc.getPages()) {
     p.drawLine({ start: { x: M, y: 40 }, end: { x: M + WIDTH, y: 40 }, thickness: 0.6, color: RULE });
-    p.drawText(`Powered by Sam for ${s.role.company}`, { x: M, y: 28, size: 7.5, font: reg, color: SOFT });
+    const brand = s.role.company ? `Powered by Sam for ${s.role.company}` : 'Powered by Sam';
+    p.drawText(brand, { x: M, y: 28, size: 7.5, font: reg, color: SOFT });
+    if (s.samUrl) {
+      // A real annotation, so it is clickable in a viewer rather than a string to retype.
+      const w = reg.widthOfTextAtSize(s.samUrl, 7);
+      p.drawText(s.samUrl, { x: M, y: 17, size: 7, font: reg, color: ACCENT });
+      p.node.set(
+        PDFName.of('Annots'),
+        doc.context.obj([doc.context.obj({
+          Type: PDFName.of('Annot'), Subtype: PDFName.of('Link'),
+          Rect: [M, 14, M + w, 25], Border: doc.context.obj([0, 0, 0]),
+          A: doc.context.obj({ Type: PDFName.of('Action'), S: PDFName.of('URI'), URI: PDFString.of(s.samUrl) }),
+        })]),
+      );
+    }
     const stamp = s.scoreIsPublishable === false
-      ? `Not scored · only ${Math.round(s.coverage * 100)}% of the rubric was observable · evidence-bound`
-      : `Role Fit ${Math.round(s.roleFit * 100)}% at ${Math.round(s.coverage * 100)}% coverage · evidence-bound`;
+      ? 'Not scored · the evidence does not support a match percentage · evidence-bound'
+      : `Role Fit ${Math.round(s.roleFit * 100)}% ${denominatorLine(s)} · evidence-bound`.replace(/\s+/g, ' ');
     p.drawText(stamp, { x: M + WIDTH - reg.widthOfTextAtSize(stamp, 7.5), y: 28, size: 7.5, font: reg, color: SOFT });
   }
 

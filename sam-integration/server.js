@@ -83,10 +83,39 @@ const send = (res, status, payload) => {
   res.end(body);
 };
 
+/**
+ * A webhook we cannot serve, told apart from a webhook that broke.
+ *
+ * This exists because the honest failure and the dangerous "fix" look identical from here.
+ */
+export class NoEnginePayloadError extends Error {
+  constructor(jobTitle) {
+    super(`Sam's engine has not scored this applicant${jobTitle ? ` for ${jobTitle}` : ''}. `
+      + 'The webhook path serves the local walkthrough only; a real application is declined '
+      + 'until the engine is wired in.');
+    this.name = 'NoEnginePayloadError';
+  }
+}
+
 async function processApplication({ webhookActionId, data }) {
   const { application } = data;
-  const entry = byRow.get(data.surveyRow);
-  if (!entry) throw new Error(`No survey response for row ${data.surveyRow}.`);
+
+  /**
+   * `data.surveyRow` IS INVENTED BY THE SIMULATOR. Real Ashby's applicationSubmit payload
+   * has no such field, so on a live webhook this lookup misses and we decline.
+   *
+   * DO NOT "FIX" THIS BY RESOLVING A ROW ANYWAY. The miss is load-bearing safety. `entry`
+   * comes from the seed spreadsheet — 41 real people's names, transcripts and quoted
+   * evidence — while `application.candidate.id` comes from Ashby. Against a real org those
+   * are two unrelated human beings, and pairing them publishes person A's interview
+   * evidence onto person B's record in a customer's ATS. Defaulting the row, or picking the
+   * nearest match, converts a loud refusal into a data-protection incident.
+   *
+   * The only correct repair is the engine: POST the candidate to Sam, take the scored
+   * payload, and pass it through snapshotFromEnginePayload — which never touches byRow.
+   */
+  const entry = data.surveyRow === undefined ? null : byRow.get(data.surveyRow);
+  if (!entry) throw new NoEnginePayloadError(application?.job?.title);
 
   // Which role is this application for? The webhook says, so Sam never has to assume.
   // An unregistered job is refused outright — a score against the wrong job's rubric
@@ -266,6 +295,15 @@ const server = http.createServer(async (req, res) => {
     deliveries.remember(envelope.webhookActionId, result);
     return send(res, 200, result);
   } catch (err) {
+    if (err instanceof NoEnginePayloadError) {
+      warn('declined — no engine payload', err.message);
+      return send(res, 422, {
+        received: true,
+        scored: false,
+        reason: 'no_engine_payload',
+        detail: err.message,
+      });
+    }
     if (err instanceof UnknownJobError) {
       warn('declined to score', err.message);
       return send(res, 422, {

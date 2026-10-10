@@ -41,6 +41,9 @@ export const INK = {
  */
 export const STATE_COLOR = {
   MET: { fg: '#1F6B45', bg: '#E4F0E9' },
+  // Met, but by transfer. A softer green than MET — the same family, because it IS a pass,
+  // with enough difference that a reviewer scanning the column sees the distinction.
+  MET_EQUIVALENT: { fg: '#3D7A5C', bg: '#EAF2ED' },
   PARTIAL: { fg: '#2C5A8A', bg: '#E3EDF6' },
   NOT_MET: { fg: '#A93A2C', bg: '#F6E5E2' },
   NOT_COLLECTED: { fg: '#8A6212', bg: '#F6EEDC' },

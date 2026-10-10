@@ -54,8 +54,22 @@ export function samFieldValues(snapshot) {
       field: SAM_CUSTOM_FIELDS.roleFit,
       value: snapshot.scoreIsPublishable === false ? CLEAR : Math.round(snapshot.roleFit * 100),
     },
-    // Coverage is always a real number — it is what explains a cleared Role Fit.
-    { field: SAM_CUSTOM_FIELDS.coverage, value: Math.round(snapshot.coverage * 100) },
+    // The denominator, from whichever the payload actually carries.
+    //
+    // Sam sends no coverage figure, so `Math.round(null * 100)` wrote a literal 0 into a
+    // filterable column — a candidate scored 94 appearing to have zero evidence behind it.
+    // Cleared rather than faked when absent, and the anchor count carries the denominator
+    // instead.
+    {
+      field: SAM_CUSTOM_FIELDS.coverage,
+      value: Number.isFinite(snapshot.coverage) ? Math.round(snapshot.coverage * 100) : CLEAR,
+    },
+    {
+      field: SAM_CUSTOM_FIELDS.anchorsMet,
+      value: snapshot.anchorSummary?.total
+        ? `${(snapshot.anchorSummary.met ?? 0) + (snapshot.anchorSummary.metEquivalent ?? 0)} of ${snapshot.anchorSummary.total}`
+        : CLEAR,
+    },
     { field: SAM_CUSTOM_FIELDS.capability, value: snapshot.capability },
     // A scheduled sweep scores one person and has no cohort. Rank is cleared rather than
     // invented — and cleared rather than skipped, so a candidate who had a rank from a
@@ -66,14 +80,73 @@ export function samFieldValues(snapshot) {
         ? `${snapshot.pool.roleFitRank} of ${snapshot.pool.size} (top ${snapshot.pool.topPercent}%)`
         : CLEAR,
     },
+
+    // The three that make the Summary tab answer "what do I do with this person" rather
+    // than only "what did they score". Each is cleared rather than omitted when there is
+    // nothing to assert — setValues MERGES, so skipping a field leaves last pass's text.
+    { field: SAM_CUSTOM_FIELDS.band, value: bandWithProvenance(snapshot) },
+    { field: SAM_CUSTOM_FIELDS.nextStep, value: directive(snapshot.recommendedNextStep) },
+    // Provenance, verbatim from what the engine says it read. The most important field on
+    // a thin read: "résumé" next to a 40% coverage explains the number at a glance.
+    { field: SAM_CUSTOM_FIELDS.readFrom, value: snapshot.provenance || CLEAR },
   ];
 }
 
-export async function setSamScores({ applicationId, snapshot, deliveryId }) {
-  const titles = Object.values(SAM_CUSTOM_FIELDS).map((f) => f.name);
-  const ids = await resolveCustomFieldIds(titles);
+/**
+ * The DIRECTIVE out of a recommended next step, not the first hundred characters of one.
+ *
+ * Sam writes these as a verdict followed by its qualifications: "Strong enough to interview.
+ * Confirm health-services context and formal P&L ownership when you do." Cutting at a
+ * character count produced "Strong enough to interview. Confirm health-services context and
+ * formal…" — a sentence severed mid-thought, in a narrow rail, while the complete version
+ * sat in the note a few inches away.
+ *
+ * Taking the first sentence gives the rail the part that is actually an instruction and
+ * leaves the qualifications to the note, which has room for them. If that sentence is itself
+ * too long for one line, it is then — and only then — trimmed at a word boundary.
+ */
+const SUMMARY_FIELD_MAX = 110;
+function directive(text) {
+  const s = String(text ?? '').trim();
+  if (!s) return CLEAR;
 
+  // First sentence: a full stop followed by a space and a capital. Avoids splitting on
+  // "$3M." or "Inc." mid-clause, which a bare /\./ would.
+  const first = /^(.+?[.!?])(\s+[A-Z]|$)/.exec(s);
+  const head = (first ? first[1] : s).trim();
+
+  if (head.length <= SUMMARY_FIELD_MAX) return head;
+  const cut = head.slice(0, SUMMARY_FIELD_MAX);
+  return `${cut.slice(0, cut.lastIndexOf(' ')) || cut}…`;
+}
+
+/**
+ * The verdict, carrying how it was reached.
+ *
+ * "Strong" on its own invites the reader to weigh it as if the whole role had been assessed.
+ * "Strong · résumé only" is the same verdict with the one qualification that changes how much
+ * weight it deserves — and it is the single most useful thing the rail can say, because it
+ * travels with the number a recruiter sorts on.
+ */
+const bandWithProvenance = (snapshot) => {
+  const band = String(snapshot.band ?? '').trim();
+  if (!band) return CLEAR;
+  const read = String(snapshot.provenance ?? '').trim();
+  return read ? `${band} · ${read} only` : band;
+};
+
+export async function setSamScores({ applicationId, snapshot, deliveryId }) {
   const values = samFieldValues(snapshot);
+
+  // Only the fields this call actually WRITES, not every field the contract declares.
+  //
+  // `resolveCustomFieldIds` throws when a title is missing, which is right for a field we
+  // are about to write and wrong for one we are not. Resolving the whole of
+  // SAM_CUSTOM_FIELDS meant that adding a declaration — `Sam Confirmed`, written by the
+  // conversation and never by this function — made EVERY score write fail in any org that
+  // had not provisioned it yet. Caught by preflight against the simulator; in a client org
+  // it would have been every candidate's fields silently not landing after an upgrade.
+  const ids = await resolveCustomFieldIds(values.map((v) => v.field.name));
 
   const wire = (list) => list.map(({ field, value }) => ({ fieldId: ids.get(field.name), fieldValue: value }));
   const cleared = values.filter((v) => v.value === CLEAR);

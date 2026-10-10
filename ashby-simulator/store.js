@@ -47,6 +47,15 @@ export const CUSTOM_FIELDS = [
   { id: stableId('cf:coverage'), title: 'Sam Evidence Coverage', objectType: 'Application', fieldType: 'Number', isArchived: false },
   { id: stableId('cf:capability'), title: 'Sam Capability Score', objectType: 'Application', fieldType: 'Number', isArchived: false },
   { id: stableId('cf:poolRank'), title: 'Sam Pool Rank', objectType: 'Application', fieldType: 'String', isArchived: false },
+  { id: stableId('cf:anchorsMet'), title: 'Sam Anchors Met', objectType: 'Application', fieldType: 'String', isArchived: false },
+  { id: stableId('cf:band'), title: 'Sam Band', objectType: 'Application', fieldType: 'String', isArchived: false },
+  { id: stableId('cf:nextStep'), title: 'Sam Next Step', objectType: 'Application', fieldType: 'String', isArchived: false },
+  { id: stableId('cf:readFrom'), title: 'Sam Read From', objectType: 'Application', fieldType: 'String', isArchived: false },
+  // Job-scoped: the enrolment tick the client owns, plus what each pass writes back.
+  { id: stableId('cf:grading'), title: 'Sam Grading', objectType: 'Job', fieldType: 'Boolean', isArchived: false },
+  { id: stableId('cf:graded'), title: 'Sam Candidates Graded', objectType: 'Job', fieldType: 'Number', isArchived: false },
+  { id: stableId('cf:medianFit'), title: 'Sam Median Role Fit', objectType: 'Job', fieldType: 'Number', isArchived: false },
+  { id: stableId('cf:lastRun'), title: 'Sam Last Run', objectType: 'Job', fieldType: 'String', isArchived: false },
 ];
 
 const REVIEW_STAGE = INTERVIEW_STAGES.find((s) => s.title === 'Application Review');

@@ -15,3 +15,14 @@ ashby-simulator/output/*
 
 # Alerts raised at runtime — see sam-integration/delivery/alerts.js
 .alerts.jsonl
+
+# Real Ashby credentials. Never committed, never packaged.
+.env
+.env.*
+!.env.example
+
+# The delivery ledger. Candidate ids and what we wrote on them — runtime state, not source.
+.sam/
+
+# macOS
+.DS_Store

@@ -42,8 +42,22 @@ export const MIN_SCOREABLE_COVERAGE = 0.5;
 export const scoreIsPublishable = (coverage) => coverage >= MIN_SCOREABLE_COVERAGE;
 
 /** Anchor states. NOT_COLLECTED is excluded from the denominator — see coverage. */
+/**
+ * Anchor states.
+ *
+ * MET_EQUIVALENT is Sam's `met_by_equivalent`: the requirement is met, but by transfer from
+ * adjacent experience rather than directly, and Sam states the assumption it made. It is not
+ * PARTIAL — Sam is not hedging, it is reasoning — and it is not MET, because the reviewer
+ * should get to judge the transfer themselves. Its own state is the only honest option.
+ *
+ * NOT_COLLECTED is kept for the local demo path, which can tell "never asked" from "not
+ * shown". SAM'S API CANNOT: its three statuses are met_directly, met_by_equivalent and
+ * not_met, so nothing on the production path ever produces it. We do not synthesise it —
+ * guessing which of Sam's not_mets were really unassessable would put words in its mouth.
+ */
 export const ANCHOR_STATE = {
   MET: 'MET',
+  MET_EQUIVALENT: 'MET_EQUIVALENT',
   PARTIAL: 'PARTIAL',
   NOT_MET: 'NOT_MET',
   NOT_COLLECTED: 'NOT_COLLECTED',
@@ -72,6 +86,26 @@ const isStr = (v) => typeof v === 'string' && v.length > 0;
 const isArr = (v) => Array.isArray(v);
 /** Optional means present-and-null, so a real absence is distinguishable from a bug. */
 const optional = (v, fallback) => (v === null || v === undefined ? fallback : v);
+
+/**
+ * Completes an optional object the engine sent half-filled.
+ *
+ * "Optional means null, never missing" covers a whole section being absent. It does not
+ * cover a section that arrived with three of its four keys — and that shape does not fail
+ * here, it fails hundreds of lines later inside pdf-lib, with a stack trace naming a
+ * drawing primitive rather than the payload. `roleLevelFit` without `suggestions` threw
+ * "s.roleLevelFit.suggestions is not iterable"; `capabilitySignals` without `missing`
+ * threw "Cannot read properties of undefined". In both cases the candidate got NO
+ * Snapshot rather than a Snapshot missing one line.
+ *
+ * The engine should send these complete, and the contract says so. But a missing array on
+ * an otherwise good payload is not worth losing the whole document over, so the array
+ * keys are filled defensively here — at the boundary, where an upstream shape is supposed
+ * to be pinned down.
+ */
+const withDefaults = (value, defaults) => (
+  value === null || value === undefined ? null : { ...defaults, ...value }
+);
 
 /**
  * Validates an engine payload against the contract.
@@ -126,6 +160,16 @@ export function validateEnginePayload(payload) {
 export function snapshotFromEnginePayload(payload, ashby) {
   validateEnginePayload(payload);
 
+  // A link is optional; a MALFORMED link is not. Rendering "undefined" or a relative path
+  // into a PDF that reaches a hiring manager is the kind of detail that makes a whole
+  // document look unfinished, and it cannot be corrected once the file is attached.
+  const sam = payload.links?.sam;
+  if (sam !== undefined && sam !== null) {
+    if (typeof sam !== 'string' || !/^https:\/\/\S+$/.test(sam)) {
+      throw new ContractError('links.sam', 'an absolute https URL, or null', sam);
+    }
+  }
+
   const anchors = payload.anchors.map(({ evidence, ...a }) => ({
     ...a,
     // The renderer reads `spans`; the contract calls them `evidence` because "span" is an
@@ -144,12 +188,32 @@ export function snapshotFromEnginePayload(payload, ashby) {
   const anchorOf = (id) => anchors.find((a) => a.id === id) ?? null;
   const bandOf = (a) => (a ? STATE_BAND[a.state] : 'Not assessed');
 
-  const fitRow = (id, fallbackLine) => {
+  /**
+   * The above-the-fold fit rows, derived from an anchor when the engine did not send one.
+   *
+   * The id is the ONLY key — there is no semantic lookup — so this fallback works for
+   * exactly one rubric: the one whose experience anchor is literally `A1` and whose
+   * responsibility anchor is literally `A3`. Any other job numbers its anchors differently.
+   *
+   * That makes the wording of the miss load-bearing. It used to read "The inputs did not
+   * evidence this", which on a rubric with ids like `ANCH_OUTBOUND` is a FALSE STATEMENT:
+   * the page claimed two dimensions were unevidenced while the anchors printed directly
+   * below it showed them MET. Not knowing and having looked and found nothing are
+   * different things, and this document's whole discipline is not confusing them.
+   */
+  const fitRow = (id) => {
     const a = anchorOf(id);
-    return { band: bandOf(a), line: a ? a.reason : fallbackLine };
+    if (a) return { band: bandOf(a), line: a.reason };
+    return {
+      band: 'Not determined',
+      line: 'The engine did not send this row, and it could not be derived from the '
+        + 'rubric’s anchors. It is not a finding about the candidate.',
+    };
   };
 
-  const level = optional(payload.profile?.roleLevelFit, null);
+  // `suggestions` is spread by the renderer, so it must be iterable whenever the row is
+  // present at all.
+  const level = withDefaults(payload.profile?.roleLevelFit, { suggestions: [] });
 
   return {
     candidate: {
@@ -168,6 +232,21 @@ export function snapshotFromEnginePayload(payload, ashby) {
       source: payload.engine?.rubricSource ?? null,
     },
 
+    /**
+     * The canonical link to this grading on Sam.
+     *
+     * THE ENGINE OWNS THIS URL, and that is the whole point. Every surface used to build it
+     * locally as `${base}/${slug(candidateName)}` — which breaks the moment two people share
+     * a name, breaks again when someone's name contains a character the slug drops, and
+     * points at a page this repo happens to host rather than the record Sam actually keeps.
+     *
+     * A link on a hiring manager's screen that 404s is worse than no link: it is a public
+     * claim that there is more to see, and the reviewer who clicks it concludes the whole
+     * document is stale. So it is never constructed and never guessed — if the engine does
+     * not send one, no link is rendered anywhere.
+     */
+    samUrl: payload.links?.sam ?? null,
+
     roleFit: payload.scores.roleFit,
     coverage: payload.scores.coverage,
     // Gates every surface at once: the headline number, the Ashby field, the note.
@@ -177,7 +256,12 @@ export function snapshotFromEnginePayload(payload, ashby) {
       : 'Insufficient evidence',
     capability: payload.scores.capability,
     capabilityRaw: optional(payload.scores.capabilityRaw, payload.scores.capability),
-    capabilitySignals: optional(payload.scores.capabilitySignals, { met: [], missing: [] }),
+    // `missing` is read with .length by the PDF and the note; a payload that sent only
+    // `met` used to take the whole delivery down. See withDefaults.
+    capabilitySignals: optional(
+      withDefaults(payload.scores.capabilitySignals, { met: [], missing: [] }),
+      { met: [], missing: [] },
+    ),
 
     anchors,
     roleAnchors: anchors,
@@ -210,9 +294,9 @@ export function snapshotFromEnginePayload(payload, ashby) {
       .map((s) => ({ anchor: a.label, column: s.column, quote: s.quote }))),
 
     experienceMatch: optional(payload.profile?.experienceMatch,
-      fitRow('A1', 'The inputs did not evidence this.')),
+      fitRow('A1')),
     responsibilityMatch: optional(payload.profile?.responsibilityMatch,
-      fitRow('A3', 'The inputs did not evidence this.')),
+      fitRow('A3')),
     roleLevelFit: level ?? {
       band: 'Not determined',
       line: 'The engine did not assert a seniority level, and inferring one from a résumé '
@@ -247,7 +331,11 @@ function cleanCareerHistory(history) {
   if (!history) return { roles: [], source: null, note: null };
   const roles = (history.roles ?? []).filter((r) => (
     r.title && r.company
-    && r.title.length > 3
+    // Long enough not to be parser debris, short enough to keep real titles. `> 3` looked
+    // harmless and silently deleted every CEO, CTO, CFO, COO and VP — on an executive
+    // search that is the entire career-history section, replaced by "no role could be read
+    // cleanly", which reads as a parsing failure rather than the filter it actually was.
+    && r.title.trim().length > 1
     && !/\d{2}%|\brates\b/i.test(r.company)
   ));
   return {

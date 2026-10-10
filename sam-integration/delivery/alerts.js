@@ -37,6 +37,8 @@ export const ALERT = {
   staleScoreVisible: 'stale_score_visible',
   /** A deliverable did not land. The record is incomplete, not wrong. */
   deliveryIncomplete: 'delivery_incomplete',
+  /** Sam sent a verdict we have no tag for, so the candidate is not findable by band. */
+  unknownBand: 'unknown_band',
 };
 
 const STREAM_PREFIX = 'SAM-ALERT';

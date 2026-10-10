@@ -63,9 +63,23 @@ const fieldIdFor = async (title) => {
   return field.id;
 };
 
+/**
+ * Reads one custom field value back off the application.
+ *
+ * NOTE THE PARAMETER NAME. `application.info` takes `applicationId`, NOT `id` — verified
+ * against a live org. Sending `id` returns `{success:false, errors:["invalid_input"]}` at
+ * HTTP **200**, so `json.results` is undefined and every lookup here silently answers
+ * "absent". This test would then have recorded `ABSENT (cleared)` for every candidate
+ * clear value and concluded that `null` works, whatever Ashby actually did — a confident
+ * wrong answer to the one question the file exists to settle.
+ */
 const readValue = async (title) => {
-  const { json } = await call(ENDPOINTS.applicationInfo, { id: APPLICATION_ID });
-  return (json?.results?.customFields ?? []).find((f) => f.title === title);
+  const { json } = await call(ENDPOINTS.applicationInfo, { applicationId: APPLICATION_ID });
+  if (json?.success !== true) {
+    throw new Error(`application.info failed: ${JSON.stringify(json?.errors)} — a failed read `
+      + 'must not be mistaken for a cleared field.');
+  }
+  return (json.results?.customFields ?? []).find((f) => f.title === title);
 };
 
 const setValues = (values) => call(ENDPOINTS.setCustomFields, {
@@ -127,16 +141,34 @@ describe('Clearing a custom field, against Ashby itself', { skip }, () => {
       if (a.rawIfUnparseable) console.log(`      raw: ${a.rawIfUnparseable}`);
     }
 
-    const cleared = attempts.filter((a) => a.fieldAfter === 'ABSENT (cleared)');
-    assert.ok(cleared.length > 0,
-      'Nothing we tried cleared the field. The clear mechanism has to come from Ashby '
-      + `support before this ships. Results: ${JSON.stringify(attempts, null, 2)}`);
+    // WHAT ASHBY ACTUALLY DOES, verified against a live org on 2026-09-10:
+    //
+    //   null → accepted, field PERSISTS with value null
+    //   ""   → accepted, field persists with value ""
+    //   0    → accepted, field persists with value 0
+    //
+    // Nothing REMOVES the entry from `customFields`. The original version of this test
+    // demanded exactly that and would have failed against a perfectly good mechanism.
+    //
+    // The success criterion that actually matters is not "the key is gone" — it is "no
+    // misleading NUMBER is on the record". A withdrawn Role Fit must not read as a score,
+    // and `value: null` presents as empty. `0` is the dangerous one: it is indistinguishable
+    // from a real score of zero and would sort to the bottom of a reviewer's list as though
+    // it had been assessed.
+    const byLabel = Object.fromEntries(attempts.map((a) => [a.sent, a]));
 
-    // The assumption the code is built on. If this fails, CLEAR in
-    // sam-integration/endpoints/customField.setValue.js is the one line to change.
-    assert.ok(cleared.some((a) => a.sent === 'null'),
-      `null did NOT clear the field. What did: ${cleared.map((a) => a.sent).join(', ')}. `
-      + 'Change CLEAR to that value.');
+    assert.equal(byLabel.null.success, true,
+      'null must at least be ACCEPTED — if Ashby ever starts rejecting it, CLEAR in '
+      + 'customField.setValue.js is the one line to change');
+
+    const after = byLabel.null.fieldAfter;
+    assert.ok(after === 'ABSENT (cleared)' || after === 'null',
+      `null left the field as ${after}. Anything other than absent-or-null means a withdrawn `
+      + 'score is still readable as a number.');
+
+    assert.notEqual(byLabel.zero.fieldAfter, 'ABSENT (cleared)',
+      'if 0 ever starts clearing a field, sending it as a clear would be tempting and wrong '
+      + '— a real score of zero and a cleared score must stay distinguishable');
   });
 
   test('a rejected clear does not take the other fields down with it', async () => {

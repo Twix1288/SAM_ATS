@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "person_id": "ashby_cand_8f21c0",
+  "person_name": "Jane Doe",
+  "person_email": "jane.doe@example.com",
+  "job_id": "sam_job_0142",
+  "scored_at": "2026-08-26T14:02:11Z",
+  "match": {
+    "percent": 94, "strength": "STRONG", "rank": 3,
+    "cohort_position": "Top 3% of candidates", "cohort_size": 128,
+    "core_anchor_missing": true, "cap_applied": false,
+    "cap_note": "Health-services context is a core anchor and is absent, but the record clears the cap on the strength of directly met core anchors."
+  },
+  "recommended_next_step": "Strong enough to interview. Confirm health-services context and formal P&L ownership when you do.",
+  "dimensions": {
+    "experience_match": { "rating": "Strong", "evidence": "8 years leading operations. Scaled from 2 to 5 sites and cut fulfillment cost 18%." },
+    "responsibility_match": { "rating": "Strong", "evidence": "Owned a $12M operating budget and a team of 40 across the region." },
+    "role_level_fit": { "rating": "Exceeds", "statement": "Their seniority exceeds the scope of this role.",
+      "suggestions": ["Confirm the role level meets their expectations", "Consider whether a more senior opening is the better match", "Consider a higher compensation to match seniority level"] }
+  },
+  "capability": { "score": 9, "scale": 10, "traits": [
+    { "label": "Owns ambiguity", "evidence": "Took undefined problems and built the process around them, repeatedly across roles." },
+    { "label": "Builds before scaling", "evidence": "Put systems and quality checks in place first, then grew operations on top of them." },
+    { "label": "Stays hands-on through delivery", "evidence": "Remained close to execution and accountable when issues surfaced." }
+  ]},
+  "role_anchors": { "met_count": 5, "total": 6, "items": [
+    { "anchor": "Multi-site operations leadership", "weight": "core", "status": "met_directly", "evidence": "Ran operations across multiple sites simultaneously.", "duration": "7 years across two companies", "recency": "current" },
+    { "anchor": "Cost optimization", "weight": "core", "status": "met_directly", "evidence": "Owned the operating budget and vendor contracts.", "duration": "4 years", "recency": "current" },
+    { "anchor": "Process and infrastructure building", "weight": "supporting", "status": "met_directly", "evidence": "Built onboarding and quality systems from scratch.", "duration": "3 years", "recency": "4 years ago" },
+    { "anchor": "Cross-team coordination", "weight": "supporting", "status": "met_directly", "evidence": "Kept decisions and deadlines moving across functions.", "duration": "7 years", "recency": "current" },
+    { "anchor": "Client retention", "weight": "supporting", "status": "met_by_equivalent", "evidence": "Improved retention through operational fixes.", "equivalent_to": "Direct account ownership", "assumption": "Retention driven through service delivery transfers to retention driven through account management.", "duration": "2 years", "recency": "current" },
+    { "anchor": "Health-services operational context", "weight": "core", "status": "not_met", "evidence": "Not shown on the resume.", "duration": null, "recency": null }
+  ]},
+  "coverage_gaps": [ { "anchor": "Health-services operational context", "related_experience": null, "note": "Nothing on the resume is close enough to stand in for this." } ],
+  "additional_skills": ["Budget ownership", "Vendor management", "Hiring and onboarding", "SOP development", "Contract negotiation", "Stakeholder management"],
+  "career_history": {
+    "matched_to_role": [
+      { "title": "Head of Operations", "company": "Novara Freight", "stage": "Series B", "tenure": "4 years, current", "summary": "Owns multi-site operations, service delivery, and the regional budget." },
+      { "title": "Operations Manager", "company": "Postmates", "stage": "Joined early", "tenure": "3 years", "summary": "Built cross-functional processes as the company scaled from seed to Series C." }
+    ],
+    "additional_experience": [
+      { "title": "Logistics Coordinator", "company": "DHL", "tenure": "2 years" },
+      { "title": "Operations Associate", "company": "Warby Parker", "tenure": "1 year, 6 months" },
+      { "title": "Analyst", "company": "Deloitte", "tenure": "1 year" }
+    ]
+  },
+  "net_read": "Jane has run operations at both ends of this role. She joined Postmates early and grew with it to Series C, then took a Series B logistics operation and scaled it across multiple sites. Early-stage grit paired with multi-site scale is an uncommon combination for this seat, and it is what separates her here. The one thing the resume cannot show is how she operates in a regulated environment, which is worth confirming live.",
+  "what_to_confirm": [
+    { "label": "Health-services context", "note": "Not shown on the resume." },
+    { "label": "Formal P&L accountability", "note": "Implied through budget ownership, not stated." }
+  ],
+  "integrity": { "ai_authorship_flag": false, "notes": null },
+  "cohort_findings": [ { "anchor": "Enterprise systems implementation", "finding": "No applicant for this role shows enterprise systems implementation. Worth confirming whether it is genuinely required, or whether it is screening out people who could do the job.", "applicants_meeting": 0, "cohort_size": 128 } ],
+  "assets": { "snapshot_url": "https://app.launchsam.com/snapshot/8f21c0", "resume_source_url": "https://app.launchsam.com/files/8f21c0.pdf" }
+}

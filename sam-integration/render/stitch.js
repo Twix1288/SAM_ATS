@@ -188,7 +188,9 @@ function addTypesetPages(doc, text, { bold, reg }) {
 async function bindOne(doc, source, fonts) {
   let bytes;
   try {
-    bytes = readFileSync(source.path);
+    // Bytes in hand win over a path. On the production path documents come from Ashby over
+    // HTTP and never touch the disk — the local cache is the demo's input, not the engine's.
+    bytes = source.bytes ?? readFileSync(source.path);
   } catch (err) {
     return { skipped: { label: source.label, reason: `unreadable (${err.code ?? 'error'})` } };
   }
